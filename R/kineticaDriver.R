@@ -1,22 +1,24 @@
-## Driver for Kinetica DB.
-##
-
-#' @include connect.R
 #' @include kineticaObject.R
+
 ## Constants
 .KineticaPkgName <- "RKinetica"
 .KineticaVersion <- "7.0.0.0"
 
 
-#' KineticaDriver class
+#' Class KineticaDriver
 #'
-#' Kinetica DB implementation of base DBIDriver class (DBI package).
-#' Defines operations for creating connections, mapping data types,
-#' validating connection configuration, etc.
+#' This is the \pkg{RKinetica} implementation of base [DBIDriver-class] class
+#' from \pkg{DBI}. Driver object is created with \code{Kinetica()} constructor, which
+#' does not need arguments.
+#' See "Usage" section for DBI methods of [DBIDriver-class] overriden by \pkg{RKinetica}.
+#' KineticaDriver defines operations for validating connection configuration \code{dbCanConnect()},
+#' creating connections \code{dbConnect()}, mapping data types \code{dbDataType()},
+#' listing active connections \code{dbListConnections()}, destroying connections \code{dbDisconnect()},
+#' etc.
 #'
-#' @docType class
-#' @name KineticaDriver-class
 #' @keywords internal
+#' @docType class
+#' @aliases KineticaDriver,Kinetica
 #' @export
 #' @import DBI
 #' @import methods
@@ -28,15 +30,17 @@ setClass("KineticaDriver",
           client.version = "character",
           connections = "environment")
 )
-#> <KineticaDriver>
 
-#' Kinetica Driver constructor
+
+#' Kinetica()
+#'
+#' Default constructor for KineticaDriver class
 #' @rdname KineticaDriver-class
 #' @export
+#' @seealso dbConnect,dbCanConnect
 #' @examples
 #' \dontrun{
 #' drv <- RKinetica::Kinetica()
-#' # or
 #' d <- Kinetica()
 #'}
 Kinetica <- function() {
@@ -47,13 +51,21 @@ Kinetica <- function() {
        client.version = .KineticaVersion,
        connections = connections)
 }
-#> no output
 
-
-#' Unload RKinetica Driver by releasing memory from Driver connections and embedded results
-#' @param drv Kinetica driver object
-#' @export
 #' @rdname KineticaDriver-class
+#' @export
+Kinetica()
+
+
+
+#' dbUnloadDriver()
+#'
+#' Unload RKinetica Driver, releasing memory from Driver connections and embedded results
+#' @rdname dbUnloadDriver
+#' @family KineticaDriver methods
+#' @param drv Kinetica driver object
+#' @param ... Other arguments ommited in generic signature
+#' @export
 setMethod("dbUnloadDriver", "KineticaDriver", function(drv, ...) {
   if(length(ls(drv@connections)>0)) {
     rm(list = ls(drv@connections), envir = as.environment(drv@connections), inherits = FALSE)
@@ -62,35 +74,42 @@ setMethod("dbUnloadDriver", "KineticaDriver", function(drv, ...) {
   gc()
   invisible(TRUE)
 })
-#> [1] "dbUnloadDriver"
 
+
+#' dbCanConnect()
+#'
 #' Method allows to check if provided Kinetica Connection configuration could be used to connect
 #' to Kinetica DB instance successfully. It takes all the arguments of dbConnect signature,
 #' creates a connection and destroys it upon exit.
+#' @rdname dbCanConnect
+#' @family KineticaDriver methods
 #' @param drv Kinetica driver object
-#' @param ... Other parameters passed on to methods.
-#' @export
-#' @rdname Kinetica-class
-setGeneric("dbCanConnect", def = function(drv, ...) standardGeneric("dbCanConnect"),
-           valueClass = "logical")
-#> [1] "dbCanConnect"
-
-#' @param host Kinetica DB host address
-#' @param port Kinetica DB port
-#' @param url Kinetica DB url (host+port)
-#' @param username DB username
-#' @param password DB password
-#' @param timeout  DB connection timeout
+#' @param host character string for Kinetica DB host address
+#' @param port integer value for Kinetica DB port
+#' @param url character string for Kinetica DB url (protocol + host + port)
+#' @param username character string for Kinetica DB username
+#' @param password character string for Kinetica DB password
+#' @param timeout  integer value for Kinetica DB connection timeout
+#' @param ... Other arguments ommited in generic signature
 #' @export
 #' @examples
 #' \dontrun{
-#' # If you jave a Kinetica DB instance running in local docker image, the minimum set of parameters
-#' # to connect is url
+#' # If you have a Kinetica DB instance running in local docker image,
+#' # the minimum set of parameters to connect is url
 #' dbCanConnect(Kinetica(), url = "http://localhost:9191")
+#' # TRUE
 #' # You can also use host and port combination
 #' dbCanConnect(Kinetica(), host = "127.0.0.1", port = 9191)
+#' # TRUE
 #' # Remote instances would also require username and password.
-#' dbCanConnect(Kinetica(), host = "127.0.0.1", port = 9191, username = "username", password = "Pa$$w0rd")
+#' dbCanConnect(Kinetica(), host = "127.0.0.1", port = 9191,
+#'     username = "username", password = "Pa$$w0rd")
+#' # TRUE
+#' # You can obscure username and password values by calling RStudio secure dialogue box:
+#' dbCanConnect(Kinetica(), host = "127.0.0.1", port = 9191,
+#'              username = rstudioapi::askForPassword("Kinetica DB user"),
+#'              password = rstudioapi::askForPassword("Kinetica DB password"))
+#' # TRUE
 #'}
 setMethod("dbCanConnect", "KineticaDriver",
   function(drv, host = NULL, port = NULL, url = NULL, username = NULL, password = NULL, timeout = NULL, ...) {
@@ -104,19 +123,34 @@ setMethod("dbCanConnect", "KineticaDriver",
         structure (FALSE, reason = conditionMessage(e))
       })
   })
-#> [1] TRUE
 
-#' Retrieves brief Driver information, dbname and driver/client version
+#' dbGetInfo()
+#'
+#' Retrieves brief KineticaDriver description:
+#' dbname, driver version, client version, max number of connections
+#' (NA stands for unlimited)
+#' @rdname dbGetInfo
+#' @family KineticaDriver methods
 #' @param dbObj an object derived of [KineticaDriver-class] type
+#' @param ... Other arguments ommited in generic signature
 #' @export
 #' @examples
-#' \dontrun{
-#' # Retrieves brief Driver information
+#' \donttest{
 #' drv <- Kinetica()
 #' dbGetInfo(drv)
+#' # name
+#' #  "KineticaDriver"
+#' # dbname
+#' #  "Kinetica"
+#' # driver.version
+#' #  "7.0.0.0"
+#' # client.version
+#' #  "7.0.0.0"
+#' # max.connections
+#' #  NA
 #'}
 setMethod("dbGetInfo", "KineticaDriver",
-  function(dbObj) {
+  function(dbObj, ...) {
     list(name = "KineticaDriver",
          dbname =  "Kinetica",
          driver.version = dbObj@driver.version,
@@ -124,41 +158,52 @@ setMethod("dbGetInfo", "KineticaDriver",
          max.connections = NA )
   }
 )
-#> $name
-#> [1] "KineticaDriver"
-#> $dbname
-#> [1] "Kinetica"
-#> $driver.version
-#> [1] "7.0.0.0"
-#> $client.version
-#> [1] "7.0.0.0"
-#> $max.connections
-#> [1] NA
 
+
+#' dbIsValid()
+#'
 #' Checks if the provided Driver object is valid
+#' @family KineticaDriver methods
+#' @rdname dbIsValid
 #' @param dbObj an object of [KineticaDriver-class] type
+#' @param ... Other arguments ommited in generic signature
 #' @export
 #' @examples
 #' \dontrun{
 #' drv <- Kinetica()
 #' dbIsValid(drv)
+#' #  TRUE
 #'}
 setMethod("dbIsValid", signature("KineticaDriver"),
   function(dbObj, ...) TRUE
 )
-#> [1] TRUE
 
-#' Show - RKinetica Driver display string
-#' @param object Kinetica Driver
+#' show()
+#'
+#' RKinetica Driver short printout string
+#' @family KineticaDriver methods
+#' @rdname show
+#' @param object Kinetica Driver object
 #' @export
+#' @examples
+#' \dontrun{
+#' drv <- Kinetica()
+#' show(drv)
+#' #  KineticaDriver 7.0.0.0
+#' }
 setMethod("show", "KineticaDriver", function(object) {
   cat("<", is(object)[1], " ", .KineticaVersion, ">\n", sep = "")
 })
-#> [1] "show"
 
 
-#' Lists all active connections in this Driver's connection pool
-#' invoking show() on connection details
+#' dbListConnections()
+#'
+#' Lists all active connections in KineticaDriver's connection pool
+#' invoking show() on KineticaConnection objects
+#' @family KineticaDriver methods
+#' @rdname dbListConnections
+#' @param drv an object of [KineticaDriver-class] type
+#' @param ... Other arguments ommited in generic signature
 #' @export
 setMethod("dbListConnections", "KineticaDriver", function(drv, ...) {
   if (!dbIsValid(drv)) {
@@ -167,31 +212,29 @@ setMethod("dbListConnections", "KineticaDriver", function(drv, ...) {
   ls(drv@connections)
 })
 
-#' @param dbObj an object of [KineticaDriver-class] type
-#' @param obj any ODBC object that can be saved in Kinetica DB
-#' @param ... Other parameters passed on to methods.
-#' @export
-setGeneric("dbDataType",
-   def = function(dbObj, obj, ...) standardGeneric("dbDataType"),
-   valueClass = "character"
-)
 
-#' Returns a matching SQLtype used when creating Kinetica DB object for the R data object
-#' @param obj data object
+#' dbDataType()
+#'
+#' Takes an R object or literal and returns a matching SQLtype
+#' used when creating Kinetica DB table value to store it
+#' @family KineticaDriver methods
+#' @param dbObj KineticaDriver object
+#' @param obj any data object or literal
+#' @param ... Other arguments ommited in generic signature
 #' @importFrom bit64 integer64 is.integer64
 #' @export
 #' @examples
 #' \dontrun{
 #' dbDataType(Kinetica(), 1L)
-#'> [1] "INTEGER"
+#'  "INTEGER"
 #' dbDataType(Kinetica(), 1)
-#'> [1] "DOUBLE"
+#'  "DOUBLE"
 #' dbDataType(Kinetica(), "Test string")
-#'> [1] "VARCHAR(256)"
+#'  "VARCHAR(256)"
 #' dbDataType(Kinetica(), Sys.Date())
-#'> [1] "DATE"
+#'  "DATE"
 #' dbDataType(Kinetica(), list())
-#'> [1] "BINARY"
+#'  "BINARY"
 #'}
 setMethod("dbDataType", "KineticaDriver", function(dbObj, obj, ...) {
 
@@ -227,39 +270,42 @@ setMethod("dbDataType", "KineticaDriver", function(dbObj, obj, ...) {
          warning("Unsupported type", call. = FALSE)
   )
 })
-#> [1] "dbDataType"
 
-#' @export
-Kinetica()
-#> <KineticaDriver>
 
+#' dbConnect()
+#'
 #' Connect to a Kinetica DB going through the appropriate authentication procedure.
 #' You can have multiple connections open and connections can have multiple results attached.
 #' This function may be invoked repeatedly assigning its output to different
 #' objects.
 #' Authentication can be provided by using username/password variables.
 #' Use [dbCanConnect()] to check if a connection can be established.
-#' @rdname KineticaDriver-class
-#' @param host Kinetica DB host address
-#' @param port Kinetica DB port
-#' @param url Kinetica DB url (host+port)
-#' @param username DB username
-#' @param password DB password
-#' @param timeout  DB connection timeout
+#' @family KineticaDriver methods
+#' @rdname dbConnect
+#' @param drv Kinetica driver object
+#' @param host character string for Kinetica DB host address
+#' @param port integer value for Kinetica DB port
+#' @param url character string for Kinetica DB url (protocol + host + port)
+#' @param username character string for Kinetica DB username
+#' @param password character string for Kinetica DB password
+#' @param timeout  integer value for Kinetica DB connection timeout
+#' @param ... Other arguments ommited in generic signature
 #' @export
 #' @examples
 #' \dontrun{
-#' # If you jave a Kinetica DB instance running in local docker image, the minimum set of parameters
-#' # to connect is url
+#' # If you jave a Kinetica DB instance running in local docker image,
+#' # the minimum set of parameters to connect is url
 #' dbConnect(Kinetica(), url = "http://localhost:9191")
 #' # You can also use host and port combination
 #' dbConnect(Kinetica(), host = "127.0.0.1", port = 9191)
 #' # Remote instances would also require username and password.
-#' dbConnect(Kinetica(), host = "127.0.0.1", port = 9191, username = "username", password = "Pa$$w0rd")
+#' dbConnect(Kinetica(), host = "127.0.0.1", port = 9191,
+#'   username = "username", password = "Pa$$w0rd")
 #' con <- dbConnect(Kinetica(), url = "http://localhost:9191")
 #' show(con)
-#'> <KineticaConnection>
-#'>   url: http://localhost:9191
+#' # KineticaConnection
+#' # url: http://localhost:9191
+#' dbDisconnect(con)
 #'}
 setMethod("dbConnect", "KineticaDriver",
   function(drv, host = NULL, port = NULL, url = NULL, username = NULL, password = NULL, timeout = NULL, ...) {
@@ -283,7 +329,8 @@ setMethod("dbConnect", "KineticaDriver",
     # create a new connection
     ptr <- sha1_hash(paste0(url, username, Sys.time()), key = "Kinetica")
     results <- new.env()
-    conn <- new ("KineticaConnection", drv = drv, host = host, port = port, url = url, username = username, password = password, timeout = timeout, ptr = ptr, results = results, ...)
+    conn <- new ("KineticaConnection", drv = drv, host = host, port = port, url = url,
+                 username = username, password = password, timeout = timeout, ptr = ptr, results = results, ...)
     drv@connections[[conn@ptr]] <- conn
 
     return (conn)
@@ -291,6 +338,7 @@ setMethod("dbConnect", "KineticaDriver",
 )
 
 # internal utility functions not exposed to user
+
 .make_url <- function(host = "character", port = "ANY") {
   if (is.null(port) || !is.numeric(port) || port == 0L) {
     port <- 9191L
@@ -350,3 +398,9 @@ setMethod("dbConnect", "KineticaDriver",
 }
 
 
+.onUnload <- function(libpath) {
+  gc() # Force garbage collection of connections
+  if (is.loaded("RKinetica")) {
+    library.dynam.unload("RKinetica", libpath)
+  }
+}

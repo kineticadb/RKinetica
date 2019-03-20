@@ -4,8 +4,8 @@ Title: Kinetica DBI datasource
 Version: 7.0.0.0
 Author: Nataliya Tairbekov
 Maintainer: Nataliya Tairbekov <ntairbekov@kinetica.com>
-Description: DBI for Kinetica DB
-License: Apache 2.0
+Description: DBI implementation for Kinetica DB (http://kinetica.com).
+License: MIT License.
 Encoding: UTF-8
 LazyData: true
 Imports: 
@@ -18,9 +18,9 @@ Imports:
 Suggests: DBItest, testthat
 RoxygenNote: 6.1.1
 Collate: 
-    'connect.R'
     'kineticaObject.R'
-    'kineticaResult.R'
     'kineticaDriver.R'
-    'kineticaSQL.R'
     'kineticaConnection.R'
+    'kineticaResult.R'
+    'kineticaSQL.R'
+    'connect.R'

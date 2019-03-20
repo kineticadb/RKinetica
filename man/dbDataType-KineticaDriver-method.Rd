@@ -3,27 +3,41 @@
 \docType{methods}
 \name{dbDataType,KineticaDriver-method}
 \alias{dbDataType,KineticaDriver-method}
-\title{Returns a matching SQLtype used when creating Kinetica DB object for the R data object}
+\title{dbDataType()}
 \usage{
 \S4method{dbDataType}{KineticaDriver}(dbObj, obj, ...)
 }
 \arguments{
-\item{obj}{data object}
+\item{dbObj}{KineticaDriver object}
+
+\item{obj}{any data object or literal}
+
+\item{...}{Other arguments ommited in generic signature}
 }
 \description{
-Returns a matching SQLtype used when creating Kinetica DB object for the R data object
+Takes an R object or literal and returns a matching SQLtype
+used when creating Kinetica DB table value to store it
 }
 \examples{
 \dontrun{
 dbDataType(Kinetica(), 1L)
-> [1] "INTEGER"
+ "INTEGER"
 dbDataType(Kinetica(), 1)
-> [1] "DOUBLE"
+ "DOUBLE"
 dbDataType(Kinetica(), "Test string")
-> [1] "VARCHAR(256)"
+ "VARCHAR(256)"
 dbDataType(Kinetica(), Sys.Date())
-> [1] "DATE"
+ "DATE"
 dbDataType(Kinetica(), list())
-> [1] "BINARY"
+ "BINARY"
 }
 }
+\seealso{
+Other KineticaDriver methods: \code{\link{dbCanConnect,KineticaDriver-method}},
+  \code{\link{dbConnect,KineticaDriver-method}},
+  \code{\link{dbGetInfo}}, \code{\link{dbIsValid}},
+  \code{\link{dbListConnections,KineticaDriver-method}},
+  \code{\link{dbUnloadDriver,KineticaDriver-method}},
+  \code{\link{show,KineticaDriver-method}}
+}
+\concept{KineticaDriver methods}

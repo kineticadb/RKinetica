@@ -3,12 +3,14 @@
 \docType{methods}
 \name{dbIsValid,KineticaConnection-method}
 \alias{dbIsValid,KineticaConnection-method}
-\title{Checks if the connection is valid
-RKinetica Connection is a configuration of url, username and password to establish
-connection to Kinetica DB, configuration does not go stale when memory objects get swapped to file.
-Thus RKinetica accepts stale connections as valid, and allows multiple results per connection.}
+\title{dbIsValid()}
 \usage{
 \S4method{dbIsValid}{KineticaConnection}(dbObj, ...)
+}
+\arguments{
+\item{dbObj}{A [KineticaConnection-class] object}
+
+\item{...}{Other arguments ommited in generic signature}
 }
 \description{
 Checks if the connection is valid
@@ -20,6 +22,29 @@ Thus RKinetica accepts stale connections as valid, and allows multiple results p
 \dontrun{
 con <- dbConnect(Kinetica(), url = "http://localhost:9191")
 dbIsValid(con)
+# TRUE
 dbDisconnect(con)
 }
 }
+\seealso{
+Other KineticaConnection methods: \code{\link{dbAppendTable,KineticaConnection-method}},
+  \code{\link{dbCreateTable,KineticaConnection-method}},
+  \code{\link{dbDataType,KineticaConnection-method}},
+  \code{\link{dbDisconnect,KineticaConnection-method}},
+  \code{\link{dbExecute,KineticaConnection,character-method}},
+  \code{\link{dbExistsTable,KineticaConnection,character-method}},
+  \code{\link{dbGetInfo}},
+  \code{\link{dbGetQuery,KineticaConnection,character-method}},
+  \code{\link{dbListFields,KineticaConnection,character-method}},
+  \code{\link{dbListObjects,KineticaConnection-method}},
+  \code{\link{dbListResults,KineticaConnection-method}},
+  \code{\link{dbListTables,KineticaConnection-method}},
+  \code{\link{dbReadTable,KineticaConnection,character-method}},
+  \code{\link{dbRemoveTable,KineticaConnection,character-method}},
+  \code{\link{dbSendQuery,KineticaConnection,character-method}},
+  \code{\link{dbSendStatement,KineticaConnection,character-method}},
+  \code{\link{dbWriteTable,KineticaConnection,character-method}},
+  \code{\link{show,KineticaDriver-method}},
+  \code{\link{sqlCreateTable,KineticaConnection-method}}
+}
+\concept{KineticaConnection methods}

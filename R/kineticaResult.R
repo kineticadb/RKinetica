@@ -1,12 +1,23 @@
-#' @include kineticaObject.R
 #' @include kineticaConnection.R
-#' Kinetica results class
 
-
+#' Class KineticaResult
+#'
+#' A virtual class representing the dataset returned from Kinetica DB
+#' and all its relevant properties.
+#'
 #' @keywords internal
+#' @aliases KineticaResult
 #' @import methods
+#' @docType class
+#' @slot connection an object derived from [KineticaConnection-class]
+#' @slot statement character for well-formed SQL statement
+#' @slot data object data.frame
+#' @slot fields character named list of column data types
+#' @slot count_affected numeric
+#' @slot total_number_of_records numeric
+#' @slot has_more_records logical
+#' @slot ref character reference pointer for result
 #' @export
-#' @name KineticaResult-class
 setClass("KineticaResult",
          contains = c("DBIResult", "KineticaObject"),
          slots = list(
@@ -21,15 +32,6 @@ setClass("KineticaResult",
       )
 )
 
-#' @export
-#' @param connection object [KineticaConnection-class]
-#' @param statement character
-#' @param data object data.frame
-#' @param columns character list
-#' @param types character list
-#' @param count_affected numeric
-#' @param total_number_of_records numeric
-#' @param has_more_records logical
 KineticaResult <- function(connection, statement, data, fields, count_affected, total_number_of_records, has_more_records) {
   ref <- sha1_hash(paste0(connection@ptr, statement, Sys.time()), key = "Kinetica")
   obj <- new ("KineticaResult", connection = connection, statement = statement, data = data, fields = fields, count_affected = count_affected,
@@ -40,6 +42,11 @@ KineticaResult <- function(connection, statement, data, fields, count_affected, 
   obj
 }
 
+#' show()
+#'
+#' Brief string printout of [KineticaResult-class] object properties
+#' @family KineticaResult methods
+#' @rdname show
 #' @param object [KineticaResult-class]
 #' @export
 setMethod("show", "KineticaResult", function(object) {
@@ -54,15 +61,26 @@ setMethod("show", "KineticaResult", function(object) {
   )
 })
 
+#' dbIsValid()
+#'
+#' Checks if the KineticaResult object has been cleared
+#' @family KineticaResult methods
+#' @rdname dbIsValid
 #' @param dbObj [KineticaResult-class]
+#' @param ... Other parameters passed on to methods.
 #' @export
 setMethod("dbIsValid", "KineticaResult", function(dbObj, ...) {
-  # check if saved
+  # check if exists in connection results environment
   exists(as.character(dbObj@ref), envir = as.environment(dbObj@connection@results), inherits = FALSE)
 })
-#> [1] "dbIsValid"
 
+#' dbGetInfo()
+#'
+#' Provides basic info on KineticaResult object
+#' @family KineticaResult methods
+#' @rdname dbGetInfo
 #' @param dbObj [KineticaResult-class]
+#' @param ... Other parameters passed on to methods.
 #' @export
 setMethod("dbGetInfo", signature("KineticaResult"), function(dbObj, ...) {
   if (!dbIsValid(dbObj)) {
@@ -76,8 +94,14 @@ setMethod("dbGetInfo", signature("KineticaResult"), function(dbObj, ...) {
   )
 })
 
-#' @export
+#' dbClearResult()
+#'
+#' Clears result, if exists, releasing memory in Connection results environment
+#' @family KineticaResult methods
+#' @rdname dbClearResult
 #' @param res [KineticaResult-class]
+#' @param ... Other parameters passed on to methods.
+#' @export
 setMethod("dbClearResult", "KineticaResult", function(res, ...) {
   # free resources
   if (!dbIsValid(res)) {
@@ -91,9 +115,15 @@ setMethod("dbClearResult", "KineticaResult", function(res, ...) {
   }
   invisible(TRUE)
 })
-#> [1] "dbClearResult"
 
 
+
+#' dbFetch()
+#'
+#' Fetches the provided number of rows from Result. If n is not provided,
+#' returns all available records
+#' @family KineticaResult methods
+#' @rdname dbFetch
 #' @param res An object inheriting from [KineticaResult-class]
 #' @param n maximum number of records to retrieve per fetch. Use `n = -1`
 #'   or `n = Inf`
@@ -106,8 +136,19 @@ setGeneric("dbFetch",
            valueClass = "data.frame"
 )
 
+#' dbFetch()
+#'
+#' Fetches the provided number of rows from Result. If n is not provided,
+#' returns all available records
+#' @family KineticaResult methods
+#' @rdname dbFetch
+#' @param res An object inheriting from [KineticaResult-class]
 #' @param n maximum number of records to retrieve per fetch. Use `n = -1`
-#' @rdname hidden_aliases
+#'   or `n = Inf`
+#'   to retrieve all pending records.  Some implementations may recognize other
+#'   special values.
+#' @param ... Other arguments passed on to methods.
+#' @export
 #' @export
 setMethod("dbFetch", signature("KineticaResult"), function(res, n = -1, ...) {
   if (!dbIsValid(res)) {
@@ -173,13 +214,26 @@ setMethod("dbFetch", signature("KineticaResult"), function(res, n = -1, ...) {
 
 })
 
-#' @param res an object fo class [KineticaResult-class]
+#' dbColumnInfo()
+#'
+#' Provides data.frame as a collection of column names and data types
+#' from the result set
+#' @family KineticaResult methods
+#' @rdname dbColumnInfo
+#' @param res An object inheriting from [KineticaResult-class]
+#' @param ... Other parameters passed on to methods.
 #' @export
 setGeneric("dbColumnInfo",
    def = function(res, ...) standardGeneric("dbColumnInfo"),
    valueClass = "data.frame"
 )
 
+#' dbColumnInfo()
+#'
+#' Provides data.frame as a collection of column names and data types
+#' from the result set
+#' @family KineticaResult methods
+#' @rdname dbColumnInfo
 #' @param res An object inheriting from [KineticaResult-class]
 #' @param ... Other parameters passed on to methods.
 #' @export
@@ -192,8 +246,14 @@ setMethod("dbColumnInfo", "KineticaResult",
   })
 
 
+#' dbHasCompleted()
+#'
+#' Returns a logical value whether the result has completed
+#' @family KineticaResult methods
+#' @rdname dbHasCompleted
+#' @param res an object of [KineticaResult-class]
+#' @param ... Other parameters passed on to methods.
 #' @export
-#' @param res KineticaResult-class
 setMethod("dbHasCompleted", "KineticaResult", function(res, ...) {
   if(!dbIsValid(res)) {
     stop("This result set has been cleared already")
@@ -213,10 +273,16 @@ setMethod("dbHasCompleted", "KineticaResult", function(res, ...) {
     }
   }
 })
-#> [1] "dbHasCompleted"
 
+
+#' dbGetRowsAffected()
+#'
+#' Returns the number of rows affected by the executed SQL statement
+#' @family KineticaResult methods
+#' @rdname dbGetRowsAffected
+#' @param res an object of [KineticaResult-class]
+#' @param ... Other parameters passed on to methods.
 #' @export
-#' @param res KineticaResult-class
 setMethod("dbGetRowsAffected", "KineticaResult", function(res, ...) {
   if (!dbIsValid(res)) {
     stop("This result set has been cleared already")
@@ -229,8 +295,14 @@ setMethod("dbGetRowsAffected", "KineticaResult", function(res, ...) {
 
 })
 
+#' dbGetRowCount()
+#'
+#' Returns the number of rows in the returned data set
+#' @family KineticaResult methods
+#' @rdname dbGetRowCount
 #' @export
 #' @param res KineticaResult-class
+#' @param ... Other parameters passed on to methods.
 setMethod("dbGetRowCount", "KineticaResult", function(res, ...) {
   if (!dbIsValid(res)) {
     stop("This result set has been cleared already")
@@ -253,8 +325,14 @@ setMethod("dbGetRowCount", "KineticaResult", function(res, ...) {
 #  res@total_number_of_records
 })
 
+#' dbGetStatement()
+#'
+#' Returns the SQL statement executed to get this result set
+#' @family KineticaResult methods
+#' @rdname dbGetStatement
+#' @param res an object of [KineticaResult-class]
+#' @param ... Other parameters passed on to methods.
 #' @export
-#' @param res KineticaResult-class
 setMethod("dbGetStatement", "KineticaResult", function(res, ...) {
   if (!dbIsValid(res)) {
     stop("This result set has been cleared already")
@@ -262,27 +340,19 @@ setMethod("dbGetStatement", "KineticaResult", function(res, ...) {
   res@statement
 })
 
-#' @inheritParams dbClearResult
+
+#' dbBind()
+#'
+#' Binds the prepared statement to parameter values provided
+#' @family KineticaResult methods
+#' @rdname dbBind
+#' @param res an object of [KineticaResult-class]
 #' @param params A list of bindings, named or unnamed.
-#' @export
-setGeneric("dbBind",
-  def = function(res, params, ...) standardGeneric("dbBind")
-)
-
-#' @inheritParams DBI::dbBind
-#' @export
-setMethod("dbBind", "KineticaResult",
-  function(res, params, ...) {
-    db_bind(res, as.list(params), ...)
-    invisible(res)
-  })
-
-#' @inheritParams DBI::dbBind
+#' @param ... Other parameters passed on to methods.
 #' @export
 setMethod("dbBind", "KineticaResult",
   function(res, params, ...) {
     db_bind(res, params, ...)
-#    invisible(res)
   })
 
 

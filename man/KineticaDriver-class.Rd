@@ -3,57 +3,31 @@
 \docType{class}
 \name{KineticaDriver-class}
 \alias{KineticaDriver-class}
+\alias{KineticaDriver,Kinetica}
 \alias{Kinetica}
-\alias{dbUnloadDriver,KineticaDriver-method}
-\alias{dbConnect,KineticaDriver-method}
-\title{KineticaDriver class}
+\title{Class KineticaDriver}
 \usage{
 Kinetica()
-
-\S4method{dbUnloadDriver}{KineticaDriver}(drv, ...)
-
-\S4method{dbConnect}{KineticaDriver}(drv, host = NULL, port = NULL,
-  url = NULL, username = NULL, password = NULL, timeout = NULL,
-  ...)
-}
-\arguments{
-\item{drv}{Kinetica driver object}
-
-\item{host}{Kinetica DB host address}
-
-\item{port}{Kinetica DB port}
-
-\item{url}{Kinetica DB url (host+port)}
-
-\item{username}{DB username}
-
-\item{password}{DB password}
-
-\item{timeout}{DB connection timeout}
 }
 \description{
-Kinetica DB implementation of base DBIDriver class (DBI package).
-Defines operations for creating connections, mapping data types,
-validating connection configuration, etc.
+This is the \pkg{RKinetica} implementation of base [DBIDriver-class] class
+from \pkg{DBI}. Driver object is created with \code{Kinetica()} constructor, which
+does not need arguments.
+See "Usage" section for DBI methods of [DBIDriver-class] overriden by \pkg{RKinetica}.
+KineticaDriver defines operations for validating connection configuration \code{dbCanConnect()},
+creating connections \code{dbConnect()}, mapping data types \code{dbDataType()},
+listing active connections \code{dbListConnections()}, destroying connections \code{dbDisconnect()},
+etc.
+
+Default constructor for KineticaDriver class
 }
 \examples{
 \dontrun{
 drv <- RKinetica::Kinetica()
-# or
 d <- Kinetica()
 }
-\dontrun{
-# If you jave a Kinetica DB instance running in local docker image, the minimum set of parameters
-# to connect is url
-dbConnect(Kinetica(), url = "http://localhost:9191")
-# You can also use host and port combination
-dbConnect(Kinetica(), host = "127.0.0.1", port = 9191)
-# Remote instances would also require username and password.
-dbConnect(Kinetica(), host = "127.0.0.1", port = 9191, username = "username", password = "Pa$$w0rd")
-con <- dbConnect(Kinetica(), url = "http://localhost:9191")
-show(con)
-> <KineticaConnection>
->   url: http://localhost:9191
 }
+\seealso{
+dbConnect,dbCanConnect
 }
 \keyword{internal}

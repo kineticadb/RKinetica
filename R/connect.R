@@ -1,3 +1,8 @@
+#' @include kineticaDriver.R
+#' @include kineticaConnection.R
+#' @include kineticaResult.R
+#' @include kineticaSQL.R
+
 #' @import httr
 #' @import rjson
 #' @import bit64
@@ -109,8 +114,6 @@ execute_sql <- function(conn = "KineticaConnection", statement = "character", of
 }
 
 #' @importFrom bit64 integer64 as.integer64
-#' @param str a character string
-#' @export
 kineticaJSONtoDataFrame <- function (str){
   js = rjson::fromJSON(str)
   temp = as.data.frame(lapply(seq_along(js$column_datatypes), function (inx) {

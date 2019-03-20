@@ -51,7 +51,7 @@ DBItest::test_result(skip = c(
     "fetch_n_more_rows", "fetch_n_zero_rows", "get_query_n_zero_rows"), ctx)
 
 # Strings with excessive use of single quotes are going to be addressed in later versions of RKinetica
-#DBItest::test_sql()
+# DBItest::test_sql(skip = NULL, ctx)
 
 #DBItest::test_meta(skip = NULL, ctx)
 

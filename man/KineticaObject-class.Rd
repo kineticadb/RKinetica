@@ -3,7 +3,8 @@
 \docType{class}
 \name{KineticaObject-class}
 \alias{KineticaObject-class}
+\alias{KineticaObject}
 \title{Class KineticaObject}
 \description{
-Class KineticaObject
+Base DB object extending [DBI::DBIObject].
 }

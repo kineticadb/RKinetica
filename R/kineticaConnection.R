@@ -1,14 +1,25 @@
-#' @include kineticaObject.R
 #' @include kineticaDriver.R
-#' @include connect.R
-#' @include kineticaSQL.R
 
-#' Class: KineticaConnection
+#' Class KineticaConnection
+#'
+#' This virtual class encapsulates the connection to Kinetica DB, provides access to queries,
+#' result sets, SQL expressions and literals, session management tools, etc.
+#'
+#' @docType class
 #' @keywords internal
+#' @aliases KineticaConnection
 #' @import DBI
 #' @import methods
+#' @slot drv an object derived from [KineticaDriver-class]
+#' @slot host character string for Kinetica DB host address
+#' @slot port integer value for Kinetica DB port
+#' @slot url character string for Kinetica DB url (protocol + host + port)
+#' @slot username character string for Kinetica DB username
+#' @slot password character string for Kinetica DB password
+#' @slot timeout  integer value for Kinetica DB connection timeout
+#' @slot ptr connection pointer (for looking up connection in Driver connection pool)
+#' @slot results a local environment storing active query results
 #' @export
-#' @name KineticaConnection-class
 setClass("KineticaConnection",
          contains = c("DBIConnection", "KineticaObject"),
          slots = list(
@@ -23,18 +34,22 @@ setClass("KineticaConnection",
            results = "environment"
          )
 )
-#> <KineticaConnection>
 
+
+#' show()
+#'
 #' Minimal KineticaConnection string representation
 #' Provides url of the Kinetica DB instance
+#' @family KineticaConnection methods
+#' @rdname show
 #' @param object [KineticaConnection-class]
 #' @export
 #' @examples
 #' \dontrun{
 #' con <- dbConnect(d, url = "http://localhost:9191")
 #' show(con)
-#'> <KineticaConnection>
-#'>   url: http://localhost:9191
+#' <KineticaConnection>
+#'   url: http://localhost:9191
 #'}
 setMethod("show", "KineticaConnection", function(object) {
   if (!dbIsValid(object)) {
@@ -47,25 +62,30 @@ setMethod("show", "KineticaConnection", function(object) {
 })
 
 
+#' dbGetInfo()
+#'
 #' Basic properties of KineticaConnection object
 #' provides DB version, url, host, port and username of the current connection
+#' @family KineticaConnection methods
+#' @rdname dbGetInfo
 #' @param dbObj object [KineticaConnection-class]
+#' @param ...  Other arguments ommited in generic signature
 #' @export
 #' @examples
 #' \dontrun{
 #' con <- dbConnect(d, url = "http://localhost:9191")
-#'> $db.version
-#'> [1] "7.0.0.0"
-#'> $dbname
-#'> [1] "Kinetica"
-#'> $url
-#'> [1] "http://localhost:9191"
-#'> $host
-#'> [1] "localhost"
-#'> $port
-#'> [1] 9191
-#'> $username
-#'> [1] ""
+#' # db.version
+#' # "7.0.0.0"
+#' # dbname
+#' # "Kinetica"
+#' # url
+#' # "http://localhost:9191"
+#' # host
+#' # "localhost"
+#' # port
+#' # 9191
+#' # username
+#' # ""
 #'}
 setMethod("dbGetInfo", "KineticaConnection",
   function(dbObj, ...) {
@@ -83,13 +103,16 @@ setMethod("dbGetInfo", "KineticaConnection",
 )
 
 
-#' @inheritParams sqlCreateTable
-#' @inheritParams rownames
-#' @param values A data frame. Factors will be converted to character vectors.
-#' @export
-setGeneric("dbAppendTable",
-    def = function(conn, name, value, ..., row.names = NULL) standardGeneric("dbAppendTable"))
-
+#' dbAppendTable()
+#'
+#' Appends rows to an existing table
+#' @family KineticaConnection methods
+#' @rdname dbAppendTable
+#' @param conn an object of [KineticaConnection-class]
+#' @param name character string for table name
+#' @param value A data frame. Factors will be converted to character vectors.
+#' @param ...  Other arguments ommited in generic signature
+#' @param row.names a flag with logical, character or NULL value
 #' @export
 setMethod("dbAppendTable", "KineticaConnection",
   function(conn, name, value, ..., row.names = NULL) {
@@ -115,6 +138,13 @@ setMethod("dbAppendTable", "KineticaConnection",
     dbExecute(conn, query, params = unname(as.list(value)))
   })
 
+
+#' sqlCreateTable()
+#'
+#' Customised version of the generic sqlCreateTable method
+#' (Kinetica DB uses TEMP keyword instead of TEMPORARY)
+#' @family KineticaConnection methods
+#' @rdname sqlCreateTable
 #' @param con A database connection.
 #' @param table Name of the table. Escaped with
 #'   [dbQuoteIdentifier()].
@@ -125,19 +155,9 @@ setMethod("dbAppendTable", "KineticaConnection",
 #' Field types are unescaped.
 #'
 #' A data frame: field types are generated using [dbDataType()].
-#' @param temporary If `TRUE`, will generate a temporary table statement.
-#' @inheritParams rownames
-#' @param ... Other arguments used by individual methods.
-#' @export
-setGeneric("sqlCreateTable",
-  def = function(con, table, fields, row.names = NA, temporary = FALSE, ...) standardGeneric("sqlCreateTable")
-)
-
-#' Customised version of the generic sqlCreateTable method
-#' (Kinetica DB uses TEMP keyword instead of TEMPORARY)
-#' @rdname hidden_aliases
 #' @param row.names a flag with logical, character or NULL value
 #' @param temporary logical TRUE/FALSE for temporary/permanent table created
+#' @param ... Other parameters passed on to methods.
 #' @export
 setMethod("sqlCreateTable", signature("KineticaConnection"),
   function(con, table, fields, row.names = NA, temporary = FALSE, ...) {
@@ -167,27 +187,25 @@ setMethod("sqlCreateTable", signature("KineticaConnection"),
 )
 
 
+#' dbCreateTable()
+#'
+#' Creates a new table
+#' @family KineticaConnection methods
+#' @rdname dbCreateTable
 #' @param conn an object of [KineticaConnection-class]
-#' @param name table name
+#' @param name character string for table name
+#' @param fields either a named character vector or a data frame
+#' @param ... Other parameters passed on to methods.
 #' @param row.names Must be `NULL`.
-#' @inheritParams sqlCreateTable
-#' @inheritParams dbDisconnect
-# @param fields either a named character verctor or a data frame
-#' @export
+#' @param temporary logical flag value whether table should be temporary
 #' @examples
 #' \dontrun{
 #' con <- dbConnect(Kinetica(), url = "http://localhost:9191")
 #' dbCreateTable(con, "tableA", data.frame(a = 1))
 #' dbExistsTable(con, "tableA")
-#'> [1] TRUE
+#' # TRUE
 #' dbDisconnect(con)
 #'}
-setGeneric("dbCreateTable",
-  def = function(conn, name, fields, ..., row.names = NULL, temporary = FALSE) standardGeneric("dbCreateTable"))
-
-#' @param conn an object of [KineticaConnection-class]
-#' @param name table name
-#' @param fields either a named character vector or a data frame
 #' @export
 setMethod ("dbCreateTable", "KineticaConnection",
    function(conn, name, fields, ..., row.names = NULL, temporary = FALSE) {
@@ -217,8 +235,13 @@ setMethod ("dbCreateTable", "KineticaConnection",
    }
 )
 
-#' Redirect to driver dbDataType method for data type mapping of provided object
+#' dbDataType()
+#'
+#' Redirect to [KineticaDriver-class] dbDataType method for data type mapping of provided object
+#' @family KineticaConnection methods
+#' @param dbObj an object of [KineticaConnection-class]
 #' @param obj generic object
+#' @param ... Other arguments ommited in generic signature
 #' @export
 setMethod("dbDataType", signature("KineticaConnection", "ANY"),
     function(dbObj, obj, ...) {
@@ -229,7 +252,13 @@ setMethod("dbDataType", signature("KineticaConnection", "ANY"),
 })
 
 
+#' dbDisconnect()
+#'
 #' Disconnects the current connection, releasing memory from all uncleared result objects
+#' @family KineticaConnection methods
+#' @rdname dbDisconnect
+#' @param conn an object of [KineticaConnection-class]
+#' @param ... Other parameters passed on to methods.
 #' @export
 #' @examples
 #' \dontrun{
@@ -251,18 +280,23 @@ setMethod("dbDisconnect", "KineticaConnection",
     invisible(TRUE)
 })
 
+#' dbExecute()
 #' Executes the statement, returning the number of affected rows or objects
+#' @family KineticaConnection methods
+#' @rdname dbExecute
+#' @param conn an object of [KineticaConnection-class]
 #' @param statement character
 #' @param params a set of values
+#' @param ... Other parameters passed on to methods.
 #' @export
 #' @examples
 #' \dontrun{
 #' con <- dbConnect(Kinetica(), url = "http://localhost:9191")
 #' dbCreateTable(con, "tableA", data.frame(a = 1))
 #' dbExistsTable(con, "tableA")
-#'> [1] TRUE
+#' # TRUE
 #' dbExecute(con, "DROP TABLE tableA")
-#'> [1] 1
+#' # 1
 #' dbDisconnect(con)
 #'}
 setMethod("dbExecute", signature("KineticaConnection", "character"),
@@ -278,30 +312,29 @@ setMethod("dbExecute", signature("KineticaConnection", "character"),
 })
 
 
-#' @param conn an object of [KineticaConnection-class]
-#' @param name table or collection name
-#' @return logical
-#' @export
-setGeneric("dbExistsTable",
-   def = function(conn, name, ...) standardGeneric("dbExistsTable"),
-   valueClass = "logical"
-)
 
+#' dbExistsTable()
+#'
 #' Checks if the table exists.
 #' Provide either table name or collection name, not both
 #' Kinetica DB table names are unique, different collections don't allow tables with the same name.
-#' @param name character
+#' @family KineticaConnection methods
+#' @rdname dbExistsTable
+#' @param conn an object of [KineticaConnection-class]
+#' @param name character string for table or collection name
+#' @param ... Other parameters passed on to methods.
+#' @return logical
 #' @export
 #' @examples
 #' \dontrun{
 #' con <- dbConnect(Kinetica(), url = "http://localhost:9191")
 #' dbCreateTable(con, "tableA", data.frame(a = 1))
 #' dbExistsTable(con, "tableA")
-#'> [1] TRUE
+#' # TRUE
 #' dbExecute(con, "DROP TABLE tableA")
-#'> [1] 1
+#' # 1
 #' dbExistsTable(con, "tableA")
-#'> [1] FALSE
+#' # FALSE
 #' dbDisconnect(con)
 #'}
 setMethod("dbExistsTable", signature("KineticaConnection", "character"),
@@ -312,30 +345,30 @@ setMethod("dbExistsTable", signature("KineticaConnection", "character"),
     return(has_table(conn, name))
   })
 
-#' @param conn A [KineticaConnection-class] object
-#' @param statement a character string containing SQL.
-#' @param ... Other parameters passed on to methods.
-#' @export
-setGeneric("dbGetQuery",
-  def = function(conn, statement, ...) standardGeneric("dbGetQuery")
-)
 
+#' dbGetQuery()
+#'
 #' Executes the Query and returns the resulting data.frame of n rows (or less)
 #' When n is not provided, returns all rows available
+#' @family KineticaConnection methods
+#' @rdname dbGetQuery
+#' @param conn A [KineticaConnection-class] object
+#' @param statement a character string containing SQL.
 #' @param n Number of rows to fetch, default -1
+#' @param ... Other parameters passed on to methods.
 #' @export
 #' @examples
 #' \dontrun{
 #' con <- dbConnect(Kinetica(), url = "http://localhost:9191")
 #' dbWriteTable(con, "tableA", data.frame(a = 1:40))
 #' dbExistsTable(con, "tableA")
-#> [1] TRUE
+#' # TRUE
 #' ds <- dbGetQuery(con, "tableA", 3)
 #' show(ds)
-#>     a
-#>1   1
-#>2   2
-#>3   3
+#'     a
+#'1   1
+#'2   2
+#'3   3
 #' dbRemoveTable(con, "tableA")
 #' dbDisconnect(con)
 #'}
@@ -354,16 +387,21 @@ setMethod("dbGetQuery", signature("KineticaConnection", "character"),
   })
 
 
+#' dbIsValid()
+#'
 #' Checks if the connection is valid
 #' RKinetica Connection is a configuration of url, username and password to establish
 #' connection to Kinetica DB, configuration does not go stale when memory objects get swapped to file.
 #' Thus RKinetica accepts stale connections as valid, and allows multiple results per connection.
+#' @family KineticaConnection methods
+#' @param dbObj A [KineticaConnection-class] object
+#' @param ...  Other arguments ommited in generic signature
 #' @export
 #' @examples
 #' \dontrun{
 #' con <- dbConnect(Kinetica(), url = "http://localhost:9191")
 #' dbIsValid(con)
-#> [1] TRUE
+#' # TRUE
 #' dbDisconnect(con)
 #'}
 setMethod("dbIsValid", signature("KineticaConnection"),
@@ -372,27 +410,25 @@ setMethod("dbIsValid", signature("KineticaConnection"),
   }
 )
 
+
+#' dbListFields()
+#'
+#' Lists field names of a given table
+#' @family KineticaConnection methods
+#' @rdname dbListFields
 #' @param conn A [KineticaConnection-class] object
-#' @param name a character string table name
+#' @param name a character string for table name
 #' @param ... Other parameters passed on to methods.
-#' @export
-setGeneric("dbListFields",
-   def = function(conn, name, ...) standardGeneric("dbListFields"),
-   valueClass = "character"
-)
-
-
-#' @param name a character string table name
 #' @export
 #' @examples
 #' \dontrun{
 #' con <- dbConnect(Kinetica(), url = "http://localhost:9191")
 #' dbWriteTable(con, "tableA", data.frame(a = 1:40))
 #' dbExistsTable(con, "tableA")
-#'> [1] TRUE
+#' # TRUE
 #' fields <- dbListFields(con, "tableA")
 #' fields
-#'> [1] "a"
+#' # "a"
 #' dbRemoveTable(con, "tableA")
 #' dbDisconnect(con)
 #'}
@@ -414,14 +450,14 @@ setMethod("dbListFields", signature("KineticaConnection", "character"),
     })
 
 
-#' #' @param conn A [KineticaConnection-class] object
-#' #' @param ... Other parameters passed on to methods.
-#' #' @export
-#' setGeneric("dbListObjects",
-#'     def = function(conn, ...) standardGeneric("dbListObjects"), valueClass = "data.frame"
-#' )
-
+#' dbListObjects()
+#'
+#' Lists database Objects available to the user, including tables, views and collections
+#' @family KineticaConnection methods
+#' @rdname dbListObjects
+#' @param conn A [KineticaConnection-class] object
 #' @param prefix character
+#' @param ... Other parameters passed on to methods.
 #' @return data.frame
 #' @export
 setMethod("dbListObjects", signature("KineticaConnection"),
@@ -435,13 +471,14 @@ setMethod("dbListObjects", signature("KineticaConnection"),
         show_objects(conn = conn, name = prefix)
       })
 
+
+#' dbListResults()
+#'
+#' Lists all active results of the current connection
+#' @family KineticaConnection methods
+#' @rdname dbListResults
 #' @param conn an object of [KineticaConnection-class]
 #' @param ... Other parameters passed on to methods.
-#' @export
-setGeneric("dbListResults",
-           def = function(conn, ...) standardGeneric("dbListResults"))
-
-#' Lists all active results in the current connection
 #' @export
 setMethod("dbListResults", signature("KineticaConnection"),
   function(conn, ...) {
@@ -455,13 +492,15 @@ setMethod("dbListResults", signature("KineticaConnection"),
     }
 })
 
-#' #' @export
-#' setGeneric("dbListTables",
-#'   def = function(conn, ...) standardGeneric("dbListTables"),
-#'            valueClass = "character")
 
-# @param conn an object of [KineticaConnection-class]
+#' dbListTables()
+#'
+#' Lists all database tables available to the user
+#' @family KineticaConnection methods
+#' @rdname dbListTables
+#' @param conn an object of [KineticaConnection-class]
 #' @param name character
+#' @param ...  Other arguments ommited in generic signature
 #' @export
 setMethod("dbListTables", signature("KineticaConnection"),
     function(conn, name, ...) {
@@ -474,15 +513,18 @@ setMethod("dbListTables", signature("KineticaConnection"),
       show_tables(conn = conn, name = name)
     })
 
+
+#' dbReadTable()
+#'
+#' Reads the data of a given table into data.frame object,
+#' clearing the KineticaResult object upon exit
+#' @family KineticaConnection methods
+#' @rdname dbReadTable
 #' @param conn an object of [KineticaConnection-class]
 #' @param name a character string table name
-#' @export
-setGeneric("dbReadTable",
-     def = function(conn, name, ...) standardGeneric("dbReadTable"),
-     valueClass = "data.frame")
-
 #' @param row.names a logical flag to create extra row_names column
 #' @param check.names a logical flag to check names
+#' @param ...  Other arguments ommited in generic signature
 #' @export
 setMethod("dbReadTable", signature("KineticaConnection", "character"),
     function(conn, name, ..., row.names = FALSE, check.names) {
@@ -508,7 +550,14 @@ setMethod("dbReadTable", signature("KineticaConnection", "character"),
     })
 
 
-#' @param name table name
+#' dbRemoveTable()
+#'
+#' Drops the table with the given name if one exists
+#' @family KineticaConnection methods
+#' @rdname dbRemoveTable
+#' @param conn an object of [KineticaConnection-class]
+#' @param name character string for table name
+#' @param ...  Other arguments ommited in generic signature
 #' @export
 setMethod("dbRemoveTable",  signature("KineticaConnection", "character"),
   function(conn, name, ...) {
@@ -526,8 +575,15 @@ setMethod("dbRemoveTable",  signature("KineticaConnection", "character"),
 
 
 
-# @param conn object [KineticaConnection-class]
+#' dbSendQuery()
+#'
+#' Executes SQL query and returns a result set. The returned result object should be read with dbFetch(result) and
+#' then cleared with dbClearResult(result)
+#' @family KineticaConnection methods
+#' @rdname dbSendQuery
+#' @param conn object [KineticaConnection-class]
 #' @param statement character
+#' @param ...  Other arguments ommited in generic signature
 #' @export
 setMethod("dbSendQuery", signature(conn ="KineticaConnection", statement = "character"),
     function(conn, statement, ...) {
@@ -542,9 +598,16 @@ setMethod("dbSendQuery", signature(conn ="KineticaConnection", statement = "char
 )
 
 
-# @param conn object [KineticaConnection-class]
+#' dbSendStatement()
+#'
+#' Executes SQL statement that does not return a result set
+#' @seealso [dbSendQuery()] [dbGetQuery()] [dbExecute()]
+#' @rdname dbSendStatement
+#' @family KineticaConnection methods
+#' @param conn object [KineticaConnection-class]
 #' @param statement character
 #' @param params a list of query named parameters
+#' @param ...  Other arguments ommited in generic signature
 #' @export
 setMethod("dbSendStatement", signature(conn ="KineticaConnection", statement = "character"),
     function(conn, statement, params = NULL, ...) {
@@ -564,18 +627,29 @@ setMethod("dbSendStatement", signature(conn ="KineticaConnection", statement = "
     }
 )
 
-#' @inheritParams dbGetQuery
-#' @inheritParams dbReadTable
-#' @param value a [data.frame] (or coercible to data.frame).
-#' @export
-setGeneric("dbWriteTable",
-           function(conn, name, value, ...) standardGeneric("dbWriteTable"))
-#' @param row.names a logical flag to create extra row_names column
+#' dbWriteTable()
+#'
+#' Writes a dataset into Kinetica DB, appending, creating or overwriting a table
+#' as indicated by flags.
+#' @seealso [dbCreateTable()] [dbAppendTable()] [dbRemoveTable()]
+#' @family KineticaConnection methods
+#' @rdname dbWriteTable
+#' @param conn an object of [KineticaConnection-class]
+#' @param name character string for table name
+#' @param value a [data.frame] (or object coercible to data.frame)
+#' @param row.names a logical flag, NULL or chaacter value to create extra row_names column
 #' @param overwrite a logical flag to overwrite existing table with new columns and values
 #' @param append a logical flag to preserve existing data and append new records
 #' @param field.types a named character vector of value field names and types
-#' @temporary a flag to use created table for temporary storage and use during the lifetime of current connection
+#' @param temporary a logical flag to create table as temporary storage
+#' @param ...  Other arguments ommited in generic signature
 #' @export
+#' @examples
+#' \dontrun{
+#' con <- dbConnect(Kinetica(), url = "http://localhost:9191")
+#' dbWriteTable(con, "test", data.frame(a = 1L:3L, b = 2.1:4.2), row.names = FALSE)
+#' dbDisconnect(con)
+#' }
 setMethod("dbWriteTable", signature("KineticaConnection", "character"),
   function(conn, name, value, ..., row.names = FALSE, overwrite = FALSE, append = FALSE, field.types = NULL, temporary = FALSE) {
     if (!dbIsValid(conn)) {
