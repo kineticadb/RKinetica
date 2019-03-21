@@ -618,8 +618,8 @@ setMethod("dbSendStatement", signature(conn ="KineticaConnection", statement = "
         stop("Invalid statement", call. = FALSE)
       }
       if (!is.null(params)) {
-        res <- new ("KineticaResult", connection = conn, statement = statement,
-                    data = data.frame(), fields = character(0), count_affected = -1, total_number_of_records = -1, has_more_records = FALSE)
+        res <- KineticaResult(connection = conn, statement = statement, data = data.frame(), fields = character(0),
+                    count_affected = -1, total_number_of_records = -1, has_more_records = FALSE)
         dbBind(res, params)
       } else {
         execute_sql(conn = conn, statement = statement, no_return_statement = TRUE)
@@ -651,7 +651,8 @@ setMethod("dbSendStatement", signature(conn ="KineticaConnection", statement = "
 #' dbDisconnect(con)
 #' }
 setMethod("dbWriteTable", signature("KineticaConnection", "character"),
-  function(conn, name, value, ..., row.names = FALSE, overwrite = FALSE, append = FALSE, field.types = NULL, temporary = FALSE) {
+  function(conn, name, value, ..., row.names = FALSE,
+           overwrite = FALSE, append = FALSE, field.types = NULL, temporary = FALSE) {
     if (!dbIsValid(conn)) {
       stop("Invalid Kinetica Connection", call. = FALSE)
     }
