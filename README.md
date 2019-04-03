@@ -17,21 +17,20 @@ install.packages("/path/to/RKinetica_7.0.0.0.tar.gz", repos = NULL, type = "sour
 
 ## Configuring R environemnt
 
-This package depends on several other CRAN packages: [DBI][DBI_package], [rjson][rjson_package], 
-[httr][httr_package], [bit64][bit64_package], [hms][hms_package], and [methods][methods_package].
+This package depends on several other CRAN packages: 
+* [DBI](https://cran.r-project.org/web/packages/DBI/index.html), 
+* [rjson](https://cran.r-project.org/web/packages/rjson/index.html),
+* [httr](https://cran.r-project.org/web/packages/httr/index.html), 
+* [bit64](https://cran.r-project.org/web/packages/bit64/index.html), 
+* [hms](https://cran.r-project.org/web/packages/hms/index.html), 
+* [methods](https://cran.r-project.org/web/packages/R.methodsS3/index.html)
+
 When you install package from RStudio, its interface recognizes package dependencies and offers
 to install them for your convenience, asking for your confirmation to install each package. 
-[DBI_package]: <https://cran.r-project.org/web/packages/DBI/index.html>
-[rjson_package]: <https://cran.r-project.org/web/packages/rjson/index.html>
-[httr_package]: <https://cran.r-project.org/web/packages/httr/index.html>
-[bit64_package]: <https://cran.r-project.org/web/packages/bit64/index.html>
-[hms_package]: <https://cran.r-project.org/web/packages/hms/index.html>
-[methods_package]: <https://cran.r-project.org/web/packages/R.methodsS3/index.html>
-
 Alternatively, you can preinstall packages in one statement:
 
 ```
-# Install the latest DBI release from CRAN:
+# Install the latest DBI releases from CRAN:
 install.packages(c("DBI", "rjson", "httr", "bit64", "hms", "methods"))
 ```
 
