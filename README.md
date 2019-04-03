@@ -1,4 +1,4 @@
-#RKinetica
+# RKinetica
 
 **RKinetica** is an R package providing access to Kinetica ODBC driver.
 
@@ -6,25 +6,27 @@ This project is the source code of R package. To install RKinetica you can eithe
 locally or download a prebuilt package release from [our release page][RKinetica.build].
 We would strongly encourage you to use release builds.
 
-[RKinetica.build]: https://github.com/kineticadb/RKinetica/releases
+[RKinetica.build]: <https://github.com/kineticadb/RKinetica/releases>
 
 Once you have built or downloaded `RKinetica_7.0.0.0.tar.gz` file, 
 open the RStudio and use the following syntax in console:
-`install.packages("/path/to/RKinetica_7.0.0.0.tar.gz", repos = NULL, type = "source")`
+```
+install.packages("/path/to/RKinetica_7.0.0.0.tar.gz", repos = NULL, type = "source")
+```
 
 
-##Configuring R environemnt
+## Configuring R environemnt
 
 This package depends on several other CRAN packages: [DBI][DBI_package], [rjson][rjson_package], 
 [httr][httr_package], [bit64][bit64_package], [hms][hms_package], and [methods][methods_package].
 When you install package from RStudio, its interface recognizes package dependencies and offers
 to install them for your convenience, asking for your confirmation to install each package. 
-[DBI_package]: https://cran.r-project.org/web/packages/DBI/index.html
-[rjson_package]: https://cran.r-project.org/web/packages/rjson/index.html
-[httr_package]: https://cran.r-project.org/web/packages/httr/index.html
-[bit64_package]: https://cran.r-project.org/web/packages/bit64/index.html
-[hms_package]: https://cran.r-project.org/web/packages/hms/index.html
-[methods_package]: https://cran.r-project.org/web/packages/R.methodsS3/index.html
+[DBI_package]: <https://cran.r-project.org/web/packages/DBI/index.html>
+[rjson_package]: <https://cran.r-project.org/web/packages/rjson/index.html>
+[httr_package]: <https://cran.r-project.org/web/packages/httr/index.html>
+[bit64_package]: <https://cran.r-project.org/web/packages/bit64/index.html>
+[hms_package]: <https://cran.r-project.org/web/packages/hms/index.html>
+[methods_package]: <https://cran.r-project.org/web/packages/R.methodsS3/index.html>
 
 Alternatively, you can preinstall packages in one statement:
 
