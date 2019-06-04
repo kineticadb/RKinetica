@@ -72,7 +72,7 @@ quote_identifier <-
       SQL(character(), names = names(x))
     } else {
       # Not calling encodeString() here to keep things simple
-      SQL(paste('"', x, '"', sep = ""), names = names(x))
+      SQL(paste('"', x, '" ', sep = ""), names = names(x))
     }
 }
 #' dbQuoteIdentifier()
@@ -123,10 +123,42 @@ setGeneric("dbUnquoteIdentifier",
 #' @rdname dbUnquoteIdentifier
 #' @param conn A subclass of [KineticaConnection-class], representing
 #'   an active connection to an DBMS.
-#' @param x An [SQL] object or character vector to unquote.
-#' @param ... Other arguments passed on to methods.
+#' @export
+setMethod("dbUnquoteIdentifier", signature("KineticaConnection", "SQL"), function(conn, x, ...) {
+  if (is(x, "character")) {
+    x <- unname(x)
+    return(gsub('"', '',  x))
+  }
+  rx <- '^(?:(?:|"((?:[^"]|"")+)"[.])(?:|"((?:[^"]|"")+)"[.])(?:|"((?:[^"]|"")*)")|([^". ]+))$'
+  bad <- grep(rx, x, invert = TRUE)
+  if (length(bad) > 0) {
+    stop("Can't unquote ", x[bad[[1]]], call. = FALSE)
+  }
+  catalog <- gsub(rx, "\\1", x)
+  catalog <- gsub('""', '"', catalog)
+  schema <- gsub(rx, "\\2", x)
+  schema <- gsub('""', '"', schema)
+  table <- gsub(rx, "\\3", x)
+  table <- gsub('""', '"', table)
+  naked_table <- gsub(rx, "\\4", x)
+
+  ret <- Map(catalog, schema, table, naked_table, f = as_table)
+  names(ret) <- names(x)
+  return(as.character(table))
+})
+
+
+#' dbUnquoteIdentifier()
+#'
+#' Unescapes the DB identifier.
+#' @rdname dbUnquoteIdentifier
+#' @param conn A subclass of [KineticaConnection-class], representing
+#'   an active connection to an DBMS.
 #' @export
 setMethod("dbUnquoteIdentifier", signature("KineticaConnection"), function(conn, x, ...) {
+  if (is(x, "character")) {
+    return(gsub('"', '',  x))
+  }
   if (is(x, "SQL")) {
     rx <- '^(?:(?:|"((?:[^"]|"")+)"[.])(?:|"((?:[^"]|"")+)"[.])(?:|"((?:[^"]|"")*)")|([^". ]+))$'
     bad <- grep(rx, x, invert = TRUE)
@@ -145,10 +177,7 @@ setMethod("dbUnquoteIdentifier", signature("KineticaConnection"), function(conn,
     names(ret) <- names(x)
     return(ret)
   }
-  if (is(x, "Id")) {
-    return(list(x))
-  }
-  stop("x must be SQL or Id", call. = FALSE)
+  stop("x must be SQL or character", call. = FALSE)
 })
 
 as_table <- function(catalog, schema, table, naked_table = NULL) {

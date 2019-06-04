@@ -187,7 +187,7 @@ mutate_if(dbCars, is.numeric, funs("percent" = ./100L))
 # compute, collect, collapse functions
 
 # fails due to unsupported in Kinetica transaction wrapping
-copy_to(mtcars, name = "mtcars2", overwrite = TRUE)
+copy_to(con, df = mtcars, name = "mtcars2", overwrite = TRUE)
 
 # create a formula
 remote <- dbCars %>% group_by(cyl) %>% mutate(Total=cumsum(drat)) %>% select(cyl, drat, Total)

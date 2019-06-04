@@ -84,12 +84,6 @@ setMethod("dbUnloadDriver", "KineticaDriver", function(drv, ...) {
 #' @rdname dbCanConnect
 #' @family KineticaDriver methods
 #' @param drv Kinetica driver object
-#' @param host character string for Kinetica DB host address
-#' @param port integer value for Kinetica DB port
-#' @param url character string for Kinetica DB url (protocol + host + port)
-#' @param username character string for Kinetica DB username
-#' @param password character string for Kinetica DB password
-#' @param timeout  integer value for Kinetica DB connection timeout
 #' @param ... Other arguments ommited in generic signature
 #' @export
 #' @examples
@@ -112,10 +106,10 @@ setMethod("dbUnloadDriver", "KineticaDriver", function(drv, ...) {
 #' # TRUE
 #'}
 setMethod("dbCanConnect", "KineticaDriver",
-  function(drv, host = NULL, port = NULL, url = NULL, username = NULL, password = NULL, timeout = NULL, ...) {
+  function(drv, ...) {
     tryCatch(
       {
-        con <- dbConnect(drv, host = host, port = port, url = url, username = username, password = password, timeout = timeout, ...)
+        con <- dbConnect(drv, ...)
         dbDisconnect(con)
         TRUE
       },
@@ -183,7 +177,6 @@ setMethod("dbIsValid", signature("KineticaDriver"),
 #' RKinetica Driver short printout string
 #' @family KineticaDriver methods
 #' @rdname show
-#' @param object Kinetica Driver object
 #' @export
 #' @examples
 #' \dontrun{
@@ -279,6 +272,9 @@ setMethod("dbDataType", "KineticaDriver", function(dbObj, obj, ...) {
 #' This function may be invoked repeatedly assigning its output to different
 #' objects.
 #' Authentication can be provided by using username/password variables.
+#' row_limit param would limit  the number of rows in query results,
+#' it's an integer value allowing up to 2,147,483,647 rows. Value literal
+#' must be followed by L, as in row_limit = 1000000L, also see example below.
 #' Use [dbCanConnect()] to check if a connection can be established.
 #' @family KineticaDriver methods
 #' @rdname dbConnect
@@ -300,7 +296,7 @@ setMethod("dbDataType", "KineticaDriver", function(dbObj, obj, ...) {
 #' dbConnect(Kinetica(), host = "127.0.0.1", port = 9191)
 #' # Remote instances would also require username and password.
 #' dbConnect(Kinetica(), host = "127.0.0.1", port = 9191,
-#'   username = "username", password = "Pa$$w0rd")
+#'   username = "username", password = "Pa$$w0rd", row_limit = 1000000L)
 #' con <- dbConnect(Kinetica(), url = "http://localhost:9191")
 #' show(con)
 #' # KineticaConnection
@@ -308,10 +304,12 @@ setMethod("dbDataType", "KineticaDriver", function(dbObj, obj, ...) {
 #' dbDisconnect(con)
 #'}
 setMethod("dbConnect", "KineticaDriver",
-  function(drv, host = NULL, port = NULL, url = NULL, username = NULL, password = NULL, timeout = NULL, ...) {
+  function(drv, host = NULL, port = NULL, url = NULL, username = NULL, password = NULL, timeout = NULL, row_limit = NULL, ...) {
     username <- ifelse(is.null(username), "", username)
     password <- ifelse(is.null(password), "", password)
-    timeout <- ifelse(is.null(timeout), 0L, timeout)
+    timeout <- ifelse(is.null(timeout), 0L, as.integer(timeout))
+    row_limit <- ifelse((missing(row_limit) || is.null(row_limit) || !is.numeric(row_limit)),
+                          10000L, as.integer(row_limit))
 
     if (!is.null(host) && !nchar(host)==0) {
       # format url
@@ -326,11 +324,17 @@ setMethod("dbConnect", "KineticaDriver",
       stop("Unsupported Connection configuration, please supply url string or host and port parameters.", call. = FALSE)
     }
 
+    # verify that Kinetica instance is running and connection can be established
+    # on error, user would get a detailed error message from HTTP response
+    version <- get_kinetica_version(url, username, password)
+
     # create a new connection
     ptr <- sha1_hash(paste0(url, username, Sys.time()), key = "Kinetica")
     results <- new.env()
+    transaction <- new.env()
     conn <- new ("KineticaConnection", drv = drv, host = host, port = port, url = url,
-                 username = username, password = password, timeout = timeout, ptr = ptr, results = results, ...)
+                 username = username, password = password, timeout = timeout, ptr = ptr,
+                 db.version = version, results = results, transaction = transaction, row_limit = row_limit, ...)
     drv@connections[[conn@ptr]] <- conn
 
     return (conn)

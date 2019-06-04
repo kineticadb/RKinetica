@@ -8,7 +8,7 @@ ctx <- DBItest::make_context(
                            strict_identifier = TRUE,
                            omit_blob_tests = TRUE,
                            placeholder_pattern = c("?"),
-                           logical_return = function(x) as.integer(x),
+                           logical_return = function(x) {if (is.null(x) || is.na(x)) {NULL} else {as.integer(x)}},
                            current_needs_parens = TRUE,
                            date_cast = function(x) paste0("\"DATE\"('", x, "')"),
                            time_cast = function(x) paste0("\"TIME\"('", format.Date(x,"%H:%M:%S"), "')"),

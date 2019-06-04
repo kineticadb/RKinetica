@@ -16,6 +16,9 @@
 #' @slot count_affected numeric
 #' @slot total_number_of_records numeric
 #' @slot has_more_records logical
+#' @slot offset numeric, pagination start position
+#' @slot limit numeric, pagination batch limit
+#' @slot paging_table name of a pagination temp table, if it was created
 #' @slot ref character reference pointer for result
 #' @export
 setClass("KineticaResult",
@@ -28,14 +31,29 @@ setClass("KineticaResult",
            count_affected = "numeric",
            total_number_of_records = "numeric",
            has_more_records = "logical",
+           offset = "numeric",
+           limit = "numeric",
+           paging_table = "character",
            ref = "character"
       )
 )
 
-KineticaResult <- function(connection, statement, data, fields, count_affected, total_number_of_records, has_more_records) {
+KineticaResult <- function(connection, statement, data, fields, count_affected, total_number_of_records, has_more_records,
+                           offset, limit, paging_table) {
+  if (is.null(offset)) {
+    offset <- 0L
+  } else {
+    offset <-as.integer(offset)
+  }
+  if (is.null(limit)) {
+    limit <- connection@row_limit
+  } else {
+    limit <- as.integer(limit)
+  }
   ref <- sha1_hash(paste0(connection@ptr, statement, Sys.time()), key = "Kinetica")
   obj <- new ("KineticaResult", connection = connection, statement = statement, data = data, fields = fields, count_affected = count_affected,
-                                        total_number_of_records = total_number_of_records, has_more_records = has_more_records, ref = ref)
+                                        total_number_of_records = total_number_of_records, has_more_records = has_more_records,
+                                        offset = offset, limit = limit, paging_table = paging_table, ref = ref)
   connection@results[[ref]] <- obj
   connection@results[[paste0(ref,"_pos")]] <- 1
 
@@ -71,7 +89,11 @@ setMethod("show", "KineticaResult", function(object) {
 #' @export
 setMethod("dbIsValid", "KineticaResult", function(dbObj, ...) {
   # check if exists in connection results environment
-  exists(as.character(dbObj@ref), envir = as.environment(dbObj@connection@results), inherits = FALSE)
+  if(class(dbObj) == "KineticaResult") {
+    exists(as.character(dbObj@ref), envir = as.environment(dbObj@connection@results), inherits = FALSE)
+  } else {
+    FALSE
+  }
 })
 
 #' dbGetInfo()
@@ -202,14 +224,7 @@ setMethod("dbFetch", signature("KineticaResult"), function(res, n = -1, ...) {
   }
   if (length(result) == length(res@fields)) {
     names(result) <- names(res@fields)
-  # } else {
-  #   print("Inconsistency with field list and data.frame")
-  #   print(result)
-  #   print(res@fields)
   }
-  # if (end_pos == res@total_number_of_records) {
-  #   dbClearResult(res)
-  # }
   return(result)
 
 })
@@ -352,12 +367,88 @@ setMethod("dbGetStatement", "KineticaResult", function(res, ...) {
 #' @export
 setMethod("dbBind", "KineticaResult",
   function(res, params, ...) {
-    db_bind(res, params, ...)
+#    print(paste("<Binding parameters:",  paste(names(params)), ">\n"))
+    if (missing(params)) {
+      stop("Cannot perform bind operation without params present", call. = FALSE)
+    }
+    if (length(params) != length(unique(unlist(names(params))))) {
+      stop(paste("Cannot perform bind operation with invalid params names", paste(names(params))), call. = FALSE)
+    }
+    if (grepl("cast(? as ", res@statement, fixed = TRUE)) {
+      stop(paste("Bind operation on return value is not supported by Kinetica. ",
+                 "\nUnsupported cast expression was found in this statement [SQL:", res@statement, "]"), call. = FALSE)
+    }
+
+    if (grepl("[$]", res@statement)) {
+      stop(paste("Named or numbered parameters are not supported by Kinetica. ",
+                 "\nUnsupported placeholders with prefix '$' were found in this statement [SQL:", res@statement, "]"), call. = FALSE)
+    }
+    prepare_mode <- grepl("[?]", res@statement)
+    if (!prepare_mode) {
+      stop(paste("No placeholders were found in this statement. [SQL:", res@statement, "]"), call. = FALSE)
+    }
+    bind_placeholders(res, params = params, ...)
   })
 
 
-db_bind <- function(res, params, ...) {
-  connection <- res@connection
+bind_placeholders <- function(res, params, ...) {
+  params <- as.data.frame(params)
+  params_count <- length(params)
+  sql_pattern <- res@statement
+  i <- 1L
+  while (grepl("?", sql_pattern, fixed = TRUE)) {
+    sql_pattern <- sub("?", paste0(.delim[1L], i, .delim[2L]), sql_pattern, fixed = TRUE)
+    i <- i+1L
+  }
+
+  placeholders_count <- i - 1L
+#  print(placeholders_count)
+
+  if(placeholders_count > 0 && placeholders_count == params_count) {
+    if (startsWith(dbGetStatement(res),"INSERT")) {
+      return(db_insert_bind(res, params, ...))
+    }
+
+    data <- data.frame()
+    count_affected <- 0L
+    total_number_of_records <- 0L
+
+    for (i in 1:nrow(params)) {
+      # collapse pattern and params
+      stmnt <- paste0(replace_placeholders(sql_pattern, params[i,], delim = .delim), collapse = "")
+      no_return_data <- !has_return_data(stmnt)
+      result <- execute_sql(conn = res@connection, statement = stmnt, no_return_data = no_return_data)
+      if (dbIsValid(result)) {
+        attributes(result)
+        if (no_return_data) {
+          count_affected <- #ifelse(!is.null(count_affected),
+                                   (count_affected + result@count_affected)#, result@count_affected)
+        } else {
+          data <- #ifelse(!is.null(data),
+            rbind(data, result@data) #, result@data)
+          total_number_of_records <- #ifelse(!is.null(total_number_of_records),
+                                            (total_number_of_records + result@total_number_of_records)
+                                            #,result@total_number_of_records)
+        }
+      }
+    }
+    on.exit(rm(result))
+    KineticaResult(connection = res@connection, statement = res@statement, data = data, fields = res@fields,
+                   count_affected = count_affected, total_number_of_records = total_number_of_records,
+                   has_more_records = res@has_more_records, offset = res@offset, limit = res@limit,
+                   paging_table = res@paging_table)
+  } else {
+    stop("Placeholder count does not match parameter count", call. = FALSE)
+  }
+}
+
+trim_leading_spaces <- function(x) sub("^\\s+", "", x)
+has_return_data <- function(statement) {
+  statement <- trim_leading_spaces(statement)
+  return(startsWith(statement, "SELECT") || startsWith(statement, "DESC") || startsWith(statement, "SHOW"))
+}
+
+db_insert_bind <- function(res, params, ...) {
   statement <- res@statement
   keep <- strsplit(statement, "VALUES")[[1]][1]
 
@@ -367,6 +458,30 @@ db_bind <- function(res, params, ...) {
   }
   statement <- paste(keep, "VALUES", paste(recs, collapse = ","))
 
-  new_res <- execute_sql(conn = connection, statement = statement, no_return_statement = TRUE)
+  new_res <- execute_sql(conn = res@connection, statement = statement, offset = NULL, limit = res@connection@row_limit,
+                         data = NULL, prepare_mode = FALSE, no_return_data = NULL)
+
+}
+
+.delim = c("{", "}")
+replace_placeholders <- function (s, values, delim = c("{", "}"), replace.NA = TRUE)
+{
+  val <- unlist(values)
+  if(length(val)!=1) {
+    val <- unlist(val)
+  }
+
+  #  it <- #if (is.null(names(val)))
+  #    seq_along(val)
+  #  else names(val)
+  for (i in seq_along(val)) {
+    repl <- if (isTRUE(replace.NA) && is.na(val[[i]]))
+      "NA"
+    else if (is.character(replace.NA) && is.na(val[[i]]))
+      replace.NA
+    else val[[i]]
+    s <- gsub(paste0(delim[1L], i, delim[2L]), repl, s, fixed = TRUE)
+  }
+  s
 }
 
