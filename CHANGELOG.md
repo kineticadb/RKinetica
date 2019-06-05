@@ -2,18 +2,18 @@
 
 ## Version 7.0
 
-### Version 7.0.2 -- 2019-06-04
+### Version 7.0.0.1 -- 2019-06-04
 
 #### Added
 
--   configurable row_limit parameter to KineticaConnection object
--   comprehensive examples folder
--   improved package documentation
+-   Configurable row_limit parameter to KineticaConnection object
+-   Comprehensive examples folder
+-   Improved package documentation
 
 #### Fixed
 
--   prepared statement parameter handling
+-   Prepared statement parameter handling
 
-### Version 7.0.0 -- 2019-03-15
+### Version 7.0.0.0 -- 2019-03-15
 
 -   Initial version

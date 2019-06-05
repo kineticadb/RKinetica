@@ -1,7 +1,7 @@
 Package: RKinetica
 Type: Package
 Title: Kinetica DBI datasource
-Version: 7.0.0.0
+Version: 7.0.0.1
 Author: Nataliya Tairbekov
 Maintainer: Nataliya Tairbekov <ntairbekov@kinetica.com>
 Description: DBI implementation for Kinetica DB (http://kinetica.com).

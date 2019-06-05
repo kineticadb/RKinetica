@@ -2,7 +2,7 @@
 
 ## Constants
 .KineticaPkgName <- "RKinetica"
-.KineticaVersion <- "7.0.0.0"
+.KineticaVersion <- "7.0.0.1"
 
 
 #' Class KineticaDriver
