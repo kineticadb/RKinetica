@@ -170,13 +170,11 @@ setGeneric("sqlAppendTable",
      def = function(con, table, values, row.names = NA, ...) standardGeneric("sqlAppendTable")
 )
 
-#' @rdname sqlAppendTable
 #' @export
 setMethod("sqlAppendTable", signature("DBIConnection"),
     function(con, table, values, row.names = NA, ...) {
-#      print(paste("This is sqlAppendTable and row.names is", row.names))
       if(!is.list(values)) {
-        stop("Values")
+        stop(paste("Values are not in expected format", values), call. = FALSE)
       }
 
       if (missing(row.names)) {
@@ -199,19 +197,25 @@ setMethod("sqlAppendTable", signature("DBIConnection"),
       ))
     }
 )
-#' @rdname sqlAppendTable
+
+#' sqlAppendTableTemplate()
+#'
+#' Creates a placeholder-based template
+#'
 #' @param con A database connection.
 #' @param table Name of the table. Escaped with [dbQuoteIdentifier()].
+#' @param values A data frame. Factors will be converted to character vectors.
 #' @param row.names a flag with logical, character or NULL value
 #' @param ... Other parameters passed on to methods.
+#'   Character vectors will be escaped with [dbQuoteString()].
 #' @param prefix Parameter prefix to use for placeholders.
 #' @param pattern Parameter pattern to use for placeholders:
 #' - `""`: no pattern
 #' - `"1"`: position
 #' - anything else: field name
+#' @family SQL generation
 #' @export
 sqlAppendTableTemplate <- function(con, table, values, row.names = NA, prefix = "?", ..., pattern = "1") {
-#  print(paste("This is sqlAppendTableTemplate and row.names is", row.names))
   if (missing(row.names)) {
     warning("Do not rely on the default value of the row.names argument for sqlAppendTableTemplate(), it will change in the future.",
             call. = FALSE
@@ -220,7 +224,7 @@ sqlAppendTableTemplate <- function(con, table, values, row.names = NA, prefix = 
 
   table <- dbQuoteIdentifier(con, table)
 
-  values <- sqlRownamesToColumn(values[0, , drop = FALSE], row.names)
+  values <- DBI::sqlRownamesToColumn(values[0, , drop = FALSE], row.names)
   fields <- dbQuoteIdentifier(con, names(values))
 
   if (pattern == "") {
@@ -268,13 +272,13 @@ setMethod("sqlCreateTable", signature("KineticaConnection"),
       warning("Do not rely on the default value of the row.names argument for sqlCreateTable(), it will change in the future.",
               call. = FALSE
       )
-      row.names = NULL
+      row.names = NA
     }
 
     table <- dbQuoteIdentifier(con, table)
 
     if (is.data.frame(fields)) {
-      fields <- sqlRownamesToColumn(fields, row.names)
+      fields <- DBI::sqlRownamesToColumn(fields, row.names)
       fields <- vapply(fields, function(x) dbDataType(con, x), character(1))
     }
 
@@ -312,7 +316,6 @@ setMethod("sqlCreateTable", signature("KineticaConnection"),
 #' @export
 setMethod ("dbCreateTable", "KineticaConnection",
    function(conn, name, fields, ..., row.names = NULL, temporary = FALSE) {
-#     print(paste("This is dbCreateTable and row.names is", row.names))
      if (!dbIsValid(conn)) {
        stop("Invalid Kinetica Connection", call. = FALSE)
      }
@@ -639,34 +642,33 @@ setMethod("dbListTables", signature("KineticaConnection"),
 #' @param check.names a logical flag to check names
 #' @param ...  Other arguments ommited in generic signature
 #' @export
-setMethod("dbReadTable", signature("KineticaConnection", "character"),
-    function(conn, name, ..., row.names = FALSE, check.names = TRUE) {
-      if (!dbIsValid(conn)) {
-        stop("Invalid Kinetica Connection", call. = FALSE)
-      }
-      if (missing(name) || is.null(name) || is.na(name) || !is.character(name)
-          || length(name) != 1 || nchar(name)<1) {
-        stop("Invalid table name", call. = FALSE)
-      }
-      if (!dbExistsTable(conn, name)) {
-        stop(paste("Table", name, "does not exist"), call. = FALSE)
-      }
-      if (!missing(row.names) && !is.null(row.names) && !is.na(row.names)) {
-        if (!is.logical(row.names) && !is.character(row.names) || length(row.names)!= 1)
-          stop("Invalid row.names parameter value, expected string, TRUE/FALSE or NULL value.", call. = FALSE)
-      }
-      if (!missing(check.names) && (.invalid_logical(check.names) || is.na(check.names))) {
-        stop("Invalid check.names parameter value, expected TRUE/FALSE.", call. = FALSE)
-      }
-      ds <- dbGetQuery(conn, paste("SELECT * FROM ", dbQuoteIdentifier(conn, name)))
-      ds <- sqlColumnToRownames(ds, row.names)
-      if (check.names) {
-        names(ds) <- make.names(names(ds), unique = TRUE)
-      }
+setMethod("dbReadTable", "KineticaConnection",
+  function(conn, name, ..., row.names = FALSE, check.names = TRUE) {
+    if (!dbIsValid(conn)) {
+      stop("Invalid Kinetica Connection", call. = FALSE)
+    }
+    if (missing(name) || is.null(name) || is.na(name) || !is.character(name)
+        || length(name) != 1 || nchar(name)<1) {
+      stop("Invalid table name", call. = FALSE)
+    }
+    if (!dbExistsTable(conn, name)) {
+      stop(paste("Table", name, "does not exist"), call. = FALSE)
+    }
+    if (!missing(row.names) && !is.null(row.names) && !is.na(row.names)) {
+      if (!is.logical(row.names) && !is.character(row.names) || length(row.names)!= 1)
+        stop("Invalid row.names parameter value, expected string, TRUE/FALSE or NULL value.", call. = FALSE)
+    }
+    if (!missing(check.names) && (.invalid_logical(check.names) || is.na(check.names))) {
+      stop("Invalid check.names parameter value, expected TRUE/FALSE.", call. = FALSE)
+    }
+    ds <- dbGetQuery(conn, paste("SELECT * FROM ", dbQuoteIdentifier(conn, name)))
+    ds <- DBI::sqlColumnToRownames(ds, row.names)
+    if (check.names) {
+      names(ds) <- make.names(names(ds), unique = TRUE)
+    }
 
-      ds
-    })
-
+    ds
+})
 
 #' dbRemoveTable()
 #'
@@ -783,61 +785,83 @@ setMethod("dbSendStatement", signature(conn ="KineticaConnection", statement = "
 setMethod("dbWriteTable", signature("KineticaConnection"),
   function(conn, name, value, ..., row.names = FALSE,
            overwrite = FALSE, append = FALSE, field.types = NULL, temporary = FALSE) {
-#    print(paste("This is dbWriteTable and row.names is", row.names))
     if (!dbIsValid(conn)) {
       stop("Invalid Kinetica Connection", call. = FALSE)
     }
+
     if (missing(name) || .invalid_character(name)) {
       stop("Invalid table name", call. = FALSE)
     }
+
     if (overwrite && append) {
       stop("Both overwrite and append can't be set to TRUE.", call. = FALSE)
     }
+
     if (!missing(overwrite) && (is.null(overwrite) || is.na(overwrite) || .invalid_logical(overwrite))) {
       stop("Invalid overwrite parameter value, expected TRUE/FALSE.", call. = FALSE)
     }
+
     if (!missing(append) && (is.null(append) || is.na(append) || .invalid_logical(append))) {
       stop("Invalid append parameter value, expected TRUE/FALSE.", call. = FALSE)
     }
+
     if (!missing(temporary) && (is.null(temporary) || is.na(temporary) || .invalid_logical(temporary))) {
       stop("Invalid temporary parameter value, expected TRUE/FALSE.", call. = FALSE)
     }
+
     if (!missing(row.names) && !is.null(row.names) && !is.na(row.names)) {
       if (!is.logical(row.names) && !is.character(row.names) || length(row.names)!= 1 )
         stop("Invalid row.names parameter value, expected string, TRUE/FALSE or NULL value.", call. = FALSE)
     }
+
     if (!missing(field.types) && .invalid_field_types(field.types)) {
-      stop("Invalid field.types parameter value, expected a named character list or NULL.", call. = FALSE)
+      stop("Invalid or incompatible with existing table field.types parameter value, expected a named character list or NULL.", call. = FALSE)
     }
-    # if(is.logical(row.names) || is.null(row.names)) {
-    #   row.names <- NULL
-    # }
 
     tbl_exists <- dbExistsTable(conn, name)
-    if (tbl_exists && missing(overwrite) && missing(append)) {
-      stop(paste("Table", name, "exists, but neither APPEND or OVERWRITE flag is set. "))
+    if (tbl_exists && !overwrite && !append) {
+      stop(paste("Table", name, "exists, but neither APPEND or OVERWRITE flags are TRUE. "))
     }
     if(overwrite && tbl_exists) {
       dbRemoveTable(conn, name)
     }
-    if (append && tbl_exists) {
-      ex_fields <- dbListFields(conn, name)
-      attributes(ex_fields)
-      values <- sqlRownamesToColumn(value[0, , drop = FALSE], row.names)
-      new_fields <- names(values)
-      if (!all(new_fields %in% ex_fields) || !all(ex_fields %in% new_fields)) {
-        stop(paste("Table", name, "exists, but its columns don't match the data to be appended. "))
+
+    tbl_values <- sqlData(conn, value[, , drop = FALSE], row.names = row.names)
+
+    # if (tbl_exists && !missing(value)) {
+    #   # KineticaDB existing column names
+    #   ex_fields <- dbListFields(conn, name)
+    #   # value data.frame field names
+    #   new_fields <- names(tbl_values)
+    #
+    #   if(length(ex_fields) < length(new_fields) || length(new_fields) != length(unique(new_fields)) ||
+    #       !all(new_fields %in% ex_fields)){
+    #     stop(paste("Table", name, "exists, its columns don't match the data to be appended. "), call. = FALSE)
+    #   }
+    # }
+
+    if (!missing(field.types) && !missing(value)) {
+      # field.types names
+      ex_fields <- names(field.types)
+      # value data.frame field names
+      new_fields <- names(tbl_values)
+
+      if(length(ex_fields) < length(new_fields)
+         || length(ex_fields) != length(unique(new_fields))
+         || !all(new_fields %in% ex_fields)) {
+        stop(paste("Parameter names in field.types (", paste0(ex_fields, collapse=","),
+                   ") and dataset names provided (", paste0(new_fields, collapse = ","), ") do not match."), call. = FALSE)
       }
     }
-    #tbl_values <- sqlData(conn, value[, , drop = FALSE], row.names = NULL)
-    tbl_values <- value[, , drop = FALSE]
-    if (!tbl_exists || overwrite) {
-      sql <- sqlCreateTable(con = conn, table = name, fields = tbl_values, row.names = row.names, temporary = temporary)
+
+
+    if(!tbl_exists || overwrite) {
+      sql <- sqlCreateTable(con = conn, table = name, values = tbl_values, fields = tbl_values, row.names = FALSE, temporary = temporary)
       dbExecute(conn = conn, statement = sql)
     }
 
     if(nrow(value) > 0) {
-      sql <- sqlAppendTable(con = conn, table = name, values = tbl_values, row.names = row.names)
+      sql <- sqlAppendTable(con = conn, table = name, values = tbl_values, row.names = FALSE)
       dbExecute(conn = conn, statement = sql)
 
     }
@@ -873,8 +897,8 @@ setMethod("dbWriteTable", signature("KineticaConnection"),
   if (is.null(fields)) {
     FALSE
   } else if (is.numeric(fields) || is.logical(fields) || is.raw(fields) || is.null(fields)
-      || is.na(names(fields)) || is.na(names(fields))
-      || length(fields) != unique(unlist(fields, use.names = FALSE))) {
+      || !is.null(names(fields)) && is.na(names(fields))
+      || length(fields) != length(unique(names(fields))) ) {
     TRUE
   } else {
     FALSE

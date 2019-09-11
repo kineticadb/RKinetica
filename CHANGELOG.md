@@ -2,6 +2,12 @@
 
 ## Version 7.0
 
+### Version 7.0.0.2 -- 2019-09-11
+
+#### Added
+
+-   Support of SSL connection with self-signed certificates.
+
 ### Version 7.0.0.1 -- 2019-06-04
 
 #### Added

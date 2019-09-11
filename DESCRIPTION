@@ -1,11 +1,11 @@
 Package: RKinetica
 Type: Package
 Title: Kinetica DBI datasource
-Version: 7.0.0.1
+Version: 7.0.0.2
 Author: Nataliya Tairbekov
 Maintainer: Nataliya Tairbekov <ntairbekov@kinetica.com>
 Description: DBI implementation for Kinetica DB (http://kinetica.com).
-License: MIT License.
+License: MIT
 Encoding: UTF-8
 LazyData: true
 Imports: 

@@ -323,7 +323,7 @@ setGeneric("sqlData",
 #' @param value A data frame
 #' @export
 setMethod("sqlData", signature("KineticaConnection"), function(con, value, row.names = NA, ...) {
-  value <- sqlRownamesToColumn(value, row.names)
+  value <- DBI::sqlRownamesToColumn(value, row.names)
 
   # Convert factors to strings
   is_factor <- vapply(value, is.factor, logical(1))

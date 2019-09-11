@@ -18,6 +18,7 @@ get_kinetica_version <- function(url = "character", username = "character", pass
   options <- .empty_set
   body$options <- options
   json_body <- toJSON(body, method = "C")
+  httr::set_config(httr::config(ssl_verifypeer = FALSE))
 
   if (!is.null(username) && nchar(username) > 0 ) {
     resp <- POST(path, authenticate(username, password), add_headers(.headers),  body = json_body, encode = "json")
@@ -247,7 +248,7 @@ skeletonDataFrame <- function(str){
   path <- paste0(conn@url, path, sep = "")
   body$options <- options
   json_body <- toJSON(body, method = "C")
-#  print(json_body)
+  httr::set_config(httr::config(ssl_verifypeer = FALSE))
 
   if (!is.null(conn@username) && nchar(conn@username) > 0 ) {
     resp <- POST(path, authenticate(conn@username, conn@password), add_headers(.headers),  body = json_body, encode = "json")
