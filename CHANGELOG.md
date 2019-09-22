@@ -2,6 +2,21 @@
 
 ## Version 7.0
 
+### Version 7.0.1.0 -- 2019-09-21
+
+#### Added
+
+-   High Availability configuration support with options to
+    either expect on automatic discovery of backup clusters
+    when primary Kinetica DB instance is HA-enabled or to
+    configure KineticaConnection manually by adding `ha_ring`
+    parameter to initial dbConnect() call.
+
+-   Pagination for queries where results are expected to exceed
+    `row_limit` of Kinetica Connection. (Available in
+    in dbSendQuery() and dbSendStatement() methods through
+    `limit` and `offset` parameters.)
+
 ### Version 7.0.0.2 -- 2019-09-11
 
 #### Added

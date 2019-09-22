@@ -7,48 +7,96 @@
 #' @import rjson
 #' @import bit64
 
-#constants
+# constants
 .empty_set <- setNames(rjson::fromJSON('{}'), character(0))
 
+# endpoint
 .show_system_properties <- "/show/system/properties"
 
-get_kinetica_version <- function(url = "character", username = "character", password = "character") {
-  path <- paste0(url, .show_system_properties, sep = "")
-  body <- .empty_set
-  options <- .empty_set
-  body$options <- options
-  json_body <- toJSON(body, method = "C")
-  httr::set_config(httr::config(ssl_verifypeer = FALSE))
+# Internal function that verifies that Kinetica DB is accessible as a single
+# instance or HA-enabled ring and returns Kinetica DB configuration properties
+show_system_properties <- function(url = "character", username = "character", password = "character", ha_ring = "character") {
 
-  if (!is.null(username) && nchar(username) > 0 ) {
-    resp <- POST(path, authenticate(username, password), add_headers(.headers),  body = json_body, encode = "json")
-  } else {
-    resp <- POST(path, add_headers(.headers), body = json_body, encode = "json")
-    on.exit(rm(resp))
+  tryCatch({
+    # Try connecting with primary URL
+    primary_connection_refused <- ""
+    resp <- .try_connection(url = url, endpoint = .show_system_properties, username = username, password = password)
+
+    # Established connection with primary url
+    if (status_code(resp) == 200) {
+      data <- rjson::fromJSON(content(resp)$data_str)
+      on.exit(rm(data))
+      # Return Kinetica DB instance properties
+      return (data$property_map)
+    } else if (status_code(resp) %in% c(500, 503, 504)) {
+      # Print a warning before trying HA ring failover
+      warning(paste("Primary instance at", url, "failed connection. ", content(resp)$message), call. = FALSE)
+      primary_connection_refused <<- primary_connection_refused
+    } else {
+      # Return error if it is unrelated to connection issues
+      stop(content(resp)$message, call. = FALSE)
+    }
+  },
+  error = function(e) {
+    # Catch curl-level exception and print a warning
+    warning(paste("Primary instance at", url, "failed connection. ", e$message), call. = FALSE)
+    primary_connection_refused <<- e$message
+  })
+  # Establishing connection with primary url failed.
+  # Parse and clean provided ha_ring, if available.
+  if (!is.na(ha_ring) && !is.null(ha_ring) && ha_ring != "") {
+    uris <- unlist(strsplit(ha_ring, ","))
+    # Find position of primary url in ha_ring
+    primary_url_idx <- match(url, uris)
+    if (!is.na(primary_url_idx)) {
+      # Exclude primary url from potential retry attempts because it has failed already
+      uris <- uris[-primary_url_idx]
+    }
+    # Set default error message
+    secondary_connection_refused <- "Provided ha_ring configuration is not valid"
+    # Retry connecting with HA_ring instances
+    for (uri in uris) {
+      tryCatch ({
+        resp <- .try_connection(url = uri, endpoint = .show_system_properties, username = username, password = password)
+        if (status_code(resp) == 200) {
+          data <- rjson::fromJSON(content(resp)$data_str)
+          on.exit(rm(data))
+          # On success, return secondary Kinetica DB instance properties
+          return (data$property_map)
+        } else {
+          # Save error message
+          warning(paste("Backup instance at", uri, "failed connection.", content(resp)$message), call. = FALSE)
+          secondary_connection_refused <<- content(resp)$data_str
+        }
+      },
+      error = function(e) {
+        # Catch curl-level exception and print a warning
+        warning(paste("Backup instance at", url, "failed.", e$message), call. = FALSE)
+        secondary_connection_refused <<- e$message
+      })
+    }
+    # Both primary url and ha_ring instances failed to establish connection, rethrow error
+    stop(paste("Provided HA ring ", ha_ring, "failed to establish connection.", secondary_connection_refused), call. = FALSE)
   }
-  if (status_code(resp) == 200) {
-    data <- rjson::fromJSON(content(resp)$data_str)
-    on.exit(rm(data))
-    core_version <- data$property_map$version.gpudb_core_version
-    return (paste0(strsplit(core_version, "[.]")[[1]][1:4], collapse= "."))
-  } else {
-    stop(content(resp)$message, call. = FALSE)
-  }
+  # Primary url failed to establish a successful connection and ha_ring was not provided, rethrow error
+  stop(paste("Failed to establish connection with primary instance", url, " and HA ring was not provided. ",
+             primary_connection_refused), call. = FALSE)
 }
 
+# endpoint
 .has_table <- "/has/table"
 
+# Internal function that checks that table exists by table name
 has_table <- function(conn = "KineticaConnection", name = "character") {
   resp <- .post(conn, .has_table, body = list(table_name = name), options = I(.empty_set))
   rjson::fromJSON(content(resp)$data_str)$table_exists
 }
 
-
+# endpoint
 .show_table <- "/show/table"
-
 .options_show_collection_tables <- list(get_column_info = "false", get_sizes = "false", show_children = "true", no_error_if_not_exists = "false")
 
-
+# Internal function that lists all tables with exact or partial name match
 show_tables <- function(conn = "KineticaConnection", name = "character") {
   tryCatch({
     resp <- .post(conn, .show_table, body = list(table_name = name), options = .options_show_collection_tables)
@@ -64,6 +112,7 @@ show_tables <- function(conn = "KineticaConnection", name = "character") {
   })
 }
 
+# Internal function that lists all top level objects (including collections)
 show_objects <- function(conn = "KineticaConnection", name = "character") {
   tryCatch({
     resp <- .post(conn, .show_table, body = list(table_name = name), options = .options_show_collection_tables)
@@ -86,15 +135,14 @@ show_objects <- function(conn = "KineticaConnection", name = "character") {
 
 }
 
-
+# endpoint
 .execute_sql <- "/execute/sql"
 .options_execute_sql <- list(parallel_execution = "false")
 .options_bind <- list(parallel_execution = "false", prepare_mode = "false")
 
+# Internal function that processes all data manipulation queries
 execute_sql <- function(conn = "KineticaConnection", statement = "character", offset = NULL, limit = NULL,
                         data = NULL, prepare_mode = NULL, no_return_data = NULL) {
-  # cat(paste("<SQL: ", statement, ">"))
-  # print(data)
 
   if (grepl("cast(? as ", statement, fixed = TRUE)) {
     stop(paste("Bind operation on return value is not supported by Kinetica. ",
@@ -127,7 +175,6 @@ execute_sql <- function(conn = "KineticaConnection", statement = "character", of
     body = list(statement = statement, offset = offset, limit = limit, encoding ="json", request_schema_str = "", data = placeholder_data),
     options = options)
 
-#  print(resp)
   data_raw <- rjson::fromJSON(content(resp)$data_str)
   json_obj <- rjson::fromJSON(data_raw$json_encoded_response)
 
@@ -164,15 +211,17 @@ execute_sql <- function(conn = "KineticaConnection", statement = "character", of
   return(result)
 }
 
+# Internal function that preprocesses SQL statements
 trim_leading_spaces <- function(x) sub("^\\s+", "", x)
 
+# Internal function that checks if SQL returns dataset or number of rows affected
 has_return_data <- function(statement) {
   statement <- trim_leading_spaces(statement)
   return(startsWith(statement, "SELECT") || startsWith(statement, "DESC") || startsWith(statement, "SHOW"))
 }
 
 
-
+# Internal function that converts Kinetica JSON data to R data.frame
 #' @importFrom bit64 integer64 as.integer64
 kineticaJSONtoDataFrame <- function (str){
   js = rjson::fromJSON(str)
@@ -210,6 +259,7 @@ kineticaJSONtoDataFrame <- function (str){
   fix.empty.names = TRUE, stringsAsFactors = default.stringsAsFactors())
 }
 
+# Internal function that creates a blank data.frame based on JSON schema
 skeletonDataFrame <- function(str){
   js = rjson::fromJSON(str)
   df = data.frame()
@@ -240,29 +290,103 @@ skeletonDataFrame <- function(str){
   return(df)
 }
 
-# const
+# const HTTP headers
 .headers <- c(Accept = "application/json", "Accept-Encoding" = "UTF-8", "Content-Type" = "application/json")
 
-.post <- function(conn = "KineticaConnection", path = "character", body = "ANY", options = "ANY") {
+# Internal function that wraps POST request with HA ring request failover
+.post <- function(conn = "KineticaConnection", endpoint = "character", body = "ANY", options = "ANY") {
+  primary_connection_refused <- ""
+  tryCatch({
+    resp = .try_connection(url = .get_url(conn), endpoint = endpoint, username = conn@username, password = conn@password,
+                           body = body, options = options)
+    if (status_code(resp) == 200) {
+      # Successful connection
+      return (resp)
+    } else if (!conn@ha_enabled || !(status_code(resp) %in% c(500, 503, 504))) {
+      # Return error, if it is unrelated to connection issues or HA is not enabled
+      stop(content(resp)$message, call. = FALSE)
+    } else {
+      # Save the error message before retrying HA ring
+      primary_connection_refused <<- content(resp)$message
+    }
+  }, error = function(e){
+    if (!conn@ha_enabled) {
+      # Rethrow error when HA ring unavailable
+      stop(e$message, call. = FALSE)
+    } else {
+      # Save the error message before retrying HA ring
+      primary_connection_refused <<- e$message
+    }
+  })
 
-  path <- paste0(conn@url, path, sep = "")
-  body$options <- options
-  json_body <- toJSON(body, method = "C")
-  httr::set_config(httr::config(ssl_verifypeer = FALSE))
-
-  if (!is.null(conn@username) && nchar(conn@username) > 0 ) {
-    resp <- POST(path, authenticate(conn@username, conn@password), add_headers(.headers),  body = json_body, encode = "json")
+  # Try running the query on backup HA instances
+  if (conn@ha_enabled) {
+    # Can't connect with current instance due to server-side error.
+    # Retry query for each instance in ha_ring until successful
+    # connection reached or all instances failed to connect.
+    ring_size <- length(conn@ha_ring)
+    # Use primary url position in ha_ring as a starter to iterate over it
+    current <- match(conn@url, conn@ha_ring)
+    # Alternative: use the position of last active ptr
+    # current <- as.integer(conn@ha_ptr[["current"]])
+    for (i in 1:ring_size) {
+      tryCatch({
+        resp <- .try_connection(url = conn@ha_ring[current], endpoint = endpoint, username = conn@username,
+                        password = conn@password, body = body, options = options)
+        if (status_code(resp) == 200) {
+          # Successful connection reached, save current instance to ha_ptr
+          conn@ha_ptr[["current"]] <- current
+          return (resp)
+        } else if (! status_code(resp) %in% c(500, 503, 504)) {
+          # Return error if it is unrelated to connection issues
+          stop(content(resp)$message, call. = FALSE)
+        } else {
+          # Catch connection error and save for later
+          secondary_connection_refused <<- content(resp)$message
+        }
+      },
+      error = function(e) {
+        # Catch curl error and save for later
+        secondary_connection_refused <<- e$message
+      })
+      # Move current index to the right in ha_ring until all instances are tried
+      current <- ifelse (current < ring_size, current + 1L, 1L)
+    }
+    # All the instances in ha_ring failed connection, throw exception
+    stop(paste("HA number of re-tries exceeded.", secondary_connection_refused), call. = FALSE)
   } else {
-    resp <- POST(path, add_headers(.headers), body = json_body, encode = "json")
-  }
-  if (status_code(resp) == 200) {
-    resp
-  } else {
-    # print(content(resp))
-    stop(content(resp)$message, call. = FALSE)
+    # Primary url failed to establish a successful connection and ha_ring was not provided, rethrow error
+    stop(paste("Failed to establish connection with instance", url, " and HA ring was not provided. ",
+               primary_connection_refused), call. = FALSE)
   }
 }
 
+
+# Internal function that sends POST request and returns response as is
+.try_connection <- function(url = "character", endpoint = "character", username = "character", password = "character",
+                            body = .empty_set, options = .empty_set) {
+  uri <- paste0(url, endpoint, sep = "")
+  body$options <- options
+  json_body <- toJSON(body, method = "C")
+  httr::set_config(httr::config(ssl_verifypeer = FALSE))
+  if (!is.null(username) && nchar(username) > 0 ) {
+    return(POST(uri, authenticate(username, password), add_headers(.headers),  body = json_body, encode = "json"))
+  } else {
+    return(POST(uri, add_headers(.headers), body = json_body, encode = "json"))
+  }
+}
+
+# Internal function that returns primary url or current HA ring url
+.get_url <- function(conn = "KineticaConnection") {
+  if (!conn@ha_enabled)
+    return (conn@url)
+  else {
+    current <- as.integer(conn@ha_ptr[["current"]])
+    return (conn@ha_ring[[current]])
+  }
+}
+
+# Internal function that maps R types to Kinetica internal types
 .KineticaTypeFromR <- function(x) {
   x <- as.character(x)
   switch(x,
@@ -280,6 +404,7 @@ skeletonDataFrame <- function(str){
 
 }
 
+# Internal function that maps Kinetica internal types to R types
 .RtypeFromKinetica <- function(x) {
   x <- as.character(x)
     switch(x,

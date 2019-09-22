@@ -304,7 +304,8 @@ setMethod("dbDataType", "KineticaDriver", function(dbObj, obj, ...) {
 #' dbDisconnect(con)
 #'}
 setMethod("dbConnect", "KineticaDriver",
-  function(drv, host = NULL, port = NULL, url = NULL, username = NULL, password = NULL, timeout = NULL, row_limit = NULL, ...) {
+  function(drv, host = NULL, port = NULL, url = NULL, username = NULL, password = NULL, timeout = NULL,
+           row_limit = NULL, ha_ring = NULL, ...) {
     username <- ifelse(is.null(username), "", username)
     password <- ifelse(is.null(password), "", password)
     timeout <- ifelse(is.null(timeout), 0L, as.integer(timeout))
@@ -326,15 +327,52 @@ setMethod("dbConnect", "KineticaDriver",
 
     # verify that Kinetica instance is running and connection can be established
     # on error, user would get a detailed error message from HTTP response
-    version <- get_kinetica_version(url, username, password)
+    system_properties <- show_system_properties(url, username, password, ha_ring)
+    core_version <- system_properties$version.gpudb_core_version
+    version <- paste0(strsplit(core_version, "[.]")[[1]][1:4], collapse= ".")
+    if (startsWith(version, "6.") || startsWith(version, "5.")) {
+      stop(paste0("Unsupported Kinetica DB version ", version, ". RKinetica expects DB version 7.0 or higher."), call. = FALSE)
+    }
 
-    # create a new connection
+    ha_ptr <- new.env()
+    ha_enabled <- as.logical(system_properties$conf.enable_ha)
+    # if flag value is NA, convert it to FALSE
+    ha_enabled <- ifelse(is.na(ha_enabled), FALSE, ha_enabled)
+
+    # set boolean flag and label for self-provided HA ring
+    if (!is.na(ha_ring) && !is.null(ha_ring) && ha_ring != "") {
+      ha_enabled = TRUE
+      ha_ptr[["label"]] <- "Self-provided HA"
+      ha_ptr[["current"]] <- 1
+    } else {
+      ha_ring <- system_properties$conf.ha_ring_head_nodes
+      # set boolean flag and label for system-provided HA ring
+      if (!is.na(ha_ring) && !is.null(ha_ring) && ha_ring != "") {
+        ha_ptr[["label"]] <- "HA"
+        ha_ptr[["current"]] <- 1
+      }
+    }
+
+    # permute the HA ring arbitrarily
+    ha_ring <- .permute_ha_ring(ha_ring)
+    # find position of primary url in the HA ring
+    primary_url_idx <- match(url, ha_ring)
+    if (is.na(primary_url_idx)) {
+      primary_url_idx <- length(ha_ring) + 1
+      ha_ring[[primary_url_idx]] <- url
+    }
+    # set pointer to position of primary url in the HA ring
+    ha_ptr[["current"]] <- primary_url_idx
+
+    # create a new connection object
     ptr <- sha1_hash(paste0(url, username, Sys.time()), key = "Kinetica")
     results <- new.env()
     transaction <- new.env()
     conn <- new ("KineticaConnection", drv = drv, host = host, port = port, url = url,
                  username = username, password = password, timeout = timeout, ptr = ptr,
-                 db.version = version, results = results, transaction = transaction, row_limit = row_limit, ...)
+                 db.version = version, results = results, transaction = transaction,
+                 row_limit = row_limit, ha_enabled = ha_enabled, ha_ring = ha_ring,
+                 ha_ptr = ha_ptr, ...)
     drv@connections[[conn@ptr]] <- conn
 
     return (conn)
@@ -401,10 +439,17 @@ setMethod("dbConnect", "KineticaDriver",
   list(url = url, host = host, port = port)
 }
 
-
-.onUnload <- function(libpath) {
-  gc() # Force garbage collection of connections
-  if (is.loaded("RKinetica")) {
-    library.dynam.unload("RKinetica", libpath)
+.permute_ha_ring <- function(uris) {
+  # Split the string of uris on comma and convert it to vector
+  uris <- unlist(strsplit(uris, ","))
+  # check that the value is in fact a non-empty vector
+  # with more than one member
+  if (is.vector(uris) && length(uris)>0) {
+    # randomly permute vector values
+    sample(uris, length(uris))
+  } else {
+    # return original object if it's empty
+    uris
   }
 }
+

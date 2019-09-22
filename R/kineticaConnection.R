@@ -13,11 +13,18 @@
 #' @slot drv an object derived from [KineticaDriver-class]
 #' @slot host character string for Kinetica DB host address
 #' @slot port integer value for Kinetica DB port
-#' @slot url character string for Kinetica DB url (protocol + host + port)
+#' @slot url character string for Kinetica DB url (protocol + host + port),
+#' when HA is enabled, this slot holds the primary Kinetica url.
 #' @slot username character string for Kinetica DB username
 #' @slot password character string for Kinetica DB password
 #' @slot timeout  integer value for Kinetica DB connection timeout
 #' @slot ptr connection pointer (for looking up connection in Driver connection pool)
+#' @slot db.version Kinetica DB version returned by client upon connection
+#' @slot transaction a local environment storing transaction state
+#' @slot row_limit maximum amount of rows returned in a query
+#' @slot ha_enabled logical flag if KineticaDB instance provides HA ring
+#' @slot ha_ring a ring of HA urls to be used when primary url fails
+#' @slot ha_ptr a local environment storing pointer at the active url
 #' @slot results a local environment storing active query results
 #' @export
 setClass("KineticaConnection",
@@ -34,6 +41,9 @@ setClass("KineticaConnection",
            db.version = "character",
            transaction = "environment",
            row_limit = "integer",
+           ha_enabled = "logical",
+           ha_ring = "character",
+           ha_ptr = "environment",
            results = "environment"
          )
 )
@@ -59,16 +69,21 @@ setMethod("show", "KineticaConnection", function(object) {
     stop("Invalid Kinetica Connection", call. = FALSE)
   }
   cat("<", is(object)[1], ">\n", sep = "")
-  cat("url:", object@url, "\n"
-
-  )
+  if (object@ha_enabled) cat(object@ha_ptr[["label"]], "enabled\n")
+  if (object@username != "") cat("user:", object@username, "\n")
+  if (object@ha_enabled)
+    cat("Current URL:", object@ha_ring[[as.integer(object@ha_ptr[["current"]])]], "\n")
+  else
+    cat("URL:", object@url, "\n")
 })
 
 
 #' dbGetInfo()
 #'
 #' Basic properties of KineticaConnection object
-#' provides DB version, url, host, port and username of the current connection
+#' provides DB version, primary url, host, port and username of the
+#' current connection, flag for HA availability, HA ring of secondary
+#' urls and maximum row count that can be returned in one query
 #' @family KineticaConnection methods
 #' @rdname dbGetInfo
 #' @param dbObj object [KineticaConnection-class]
@@ -102,6 +117,8 @@ setMethod("dbGetInfo", "KineticaConnection",
          host = dbObj@host,
          port = dbObj@port,
          username = dbObj@username,
+         ha_enabled = dbObj@ha_enabled,
+         ha_ring = dbObj@ha_ring,
          row_limit = dbObj@row_limit)
   }
 )
@@ -707,20 +724,20 @@ setMethod("dbRemoveTable",  signature("KineticaConnection", "character"),
 #' @param ...  Other arguments ommited in generic signature
 #' @export
 setMethod("dbSendQuery", signature(conn ="KineticaConnection", statement = "character"),
-    function(conn, statement, params = NULL, ...) {
+    function(conn, statement, params = NULL, offset = NULL, limit = NULL, ...) {
       if (!dbIsValid(conn)) {
         stop("Invalid Kinetica Connection", call. = FALSE)
       }
-      if (missing(statement) || is.null(statement) || is.na(statement) 
+      if (missing(statement) || is.null(statement) || is.na(statement)
 	|| .invalid_character(statement) || length(statement) != 1) {
         stop("Invalid statement", call. = FALSE)
       }
 
       if (missing(params) || is.null(params) || is.na(params)) {
         prepare_mode <- grepl("?", statement, fixed = TRUE)
-        execute_sql(conn = conn, statement = statement, offset = NULL, limit = NULL, data = params, prepare_mode = prepare_mode, no_return_data = FALSE)
+        execute_sql(conn = conn, statement = statement, offset = offset, limit = limit, data = params, prepare_mode = prepare_mode, no_return_data = FALSE)
       } else {
-        res <- execute_sql(conn = conn, statement = statement, offset = NULL, limit = NULL, data = NULL, prepare_mode = FALSE, no_return_data = FALSE)
+        res <- execute_sql(conn = conn, statement = statement, offset = offset, limit = limit, data = NULL, prepare_mode = FALSE, no_return_data = FALSE)
         dbBind(res, params)
       }
     }
@@ -739,20 +756,20 @@ setMethod("dbSendQuery", signature(conn ="KineticaConnection", statement = "char
 #' @param ...  Other arguments ommited in generic signature
 #' @export
 setMethod("dbSendStatement", signature(conn ="KineticaConnection", statement = "character"),
-    function(conn, statement, params = NULL, ...) {
+    function(conn, statement, params = NULL, offset = NULL, limit = NULL, ...) {
       if (!dbIsValid(conn)) {
         stop("Invalid Kinetica Connection", call. = FALSE)
       }
-      if (missing(statement) || is.null(statement) || is.na(statement) 
+      if (missing(statement) || is.null(statement) || is.na(statement)
 	|| .invalid_character(statement) || length(statement) != 1) {
         stop("Invalid statement", call. = FALSE)
       }
 
       if (missing(params) || is.null(params) || is.na(params)) {
         prepare_mode <- grepl("?", statement, fixed = TRUE)
-        execute_sql(conn = conn, statement = statement, offset = NULL, limit = NULL, data = params, prepare_mode = prepare_mode, no_return_data = TRUE)
+        execute_sql(conn = conn, statement = statement, offset = offset, limit = limit, data = params, prepare_mode = prepare_mode, no_return_data = TRUE)
       } else {
-        res <- execute_sql(conn = conn, statement = statement, offset = NULL, limit = NULL, data = NULL, prepare_mode = FALSE, no_return_data = TRUE)
+        res <- execute_sql(conn = conn, statement = statement, offset = offset, limit = limit, data = NULL, prepare_mode = FALSE, no_return_data = TRUE)
         dbBind(res, params)
       }
 

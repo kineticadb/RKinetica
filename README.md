@@ -107,7 +107,7 @@ con <- dbConnect(RKinetica::Kinetica(),
                  password = rstudioapi::askForPassword("Database password?"))
 ```
 
-If you expect the result set to exceed 10,000 rows, set the custom row_limit 
+If you expect the result set to exceed 10,000 rows, set the custom row_limit
 parameter value:
 
 ```
@@ -156,8 +156,94 @@ print(rows)
 dbDisconnect(con)
 ```
 
+Large tables, views or query results can have pagination parameters passed
+in `dbSendQuery` or `dbSendStatement` syntax. Assuming that the `con` connection
+was established as shown above with `row_limit = 1000000L`, in the following
+example query extracts a million records from `acquisition` table sorted by `l_id`
+in an infinite loop, getting the data in one million record batches and moving
+offset by 1 million until the dbSendQuery() resultset is returned empty.
+
+```
+sql_query <- "SELECT l_id, product_type, term, score FROM acquisition ORDER BY l_id"
+offset <- 0L
+repeat {
+  result <- dbSendQuery(con, sql_query, limit = 1000000L, offset = offset)
+
+  # work with current data.frame provided in result@data
+
+  if (nrow(result@data) > 0) {
+    # increase offset to get next page of data
+    offset <- offset + 1000000L
+  } else {
+    # exit pagination loop when data.frame is empty
+    break
+  }
+}
+```
+
 Additional code examples are available
 [in the "examples" subdirectory](examples/).
+
+
+## Configuring High Availablity (HA)
+
+### Automatic Discovery
+
+When Kinetica DB installation has been KAgent-configured for HA on two or more
+clusters, RKinetica would use automatic discovery on the primary `url`
+of KineticaConnection to set up `ha_ring` of Kinetica DB secondary urls
+that connection falls back to when the primary url fails. You don't
+need to configure environment, because RKinetica when connecting to
+Kinetica DB instance would check if HA is enabled and parse provided
+`ha_ring`. KineticaConnection has additional parameters to store this:
+
+```
+con <- dbConnect(RKinetica::Kinetica(), url = "http://192.168.0.71:9191")
+dbGetInfo(con)
+
+$url
+[1] "http://192.168.0.71:9191"
+
+$host
+[1] "192.168.0.71"
+
+$port
+[1] 9191
+
+$ha_enabled
+[1] TRUE
+
+$ha_ring
+[1] "http://192.168.0.73:9191" "http://192.168.0.71:9191" "http://192.168.0.72:9191"
+```
+
+Urls in `ha_ring` are permutated to balance load on secondary url instances
+when primary url fails. You can use a `show(con)` on connection at any time
+to check which url from `ha_ring` is used in active connection:
+
+```
+show(con)
+
+<KineticaConnection>
+HA enabled
+Current url: http://192.168.0.72:9191
+```
+
+### Manual Configuration
+
+If the user wants to provide urls for backup instances manually, he can do so
+by adding the `ha_ring` parameter to connection and a comma-separated list
+of uris for secondary clusters:
+
+```
+con <- dbConnect(RKinetica::Kinetica(), url = "http://192.168.0.71:9191",
+       ha_ring = "http://192.168.0.72:9191,http://192.168.0.73:9191")
+show(con)
+
+<KineticaConnection>
+Self-provided HA enabled
+Current url: http://192.168.0.71:9191
+```
 
 
 ## Documentation
