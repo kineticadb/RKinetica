@@ -7,7 +7,7 @@
 \usage{
 \S4method{dbConnect}{KineticaDriver}(drv, host = NULL, port = NULL,
   url = NULL, username = NULL, password = NULL, timeout = NULL,
-  ...)
+  row_limit = NULL, ha_ring = NULL, ...)
 }
 \arguments{
 \item{drv}{Kinetica driver object}
@@ -32,6 +32,9 @@ You can have multiple connections open and connections can have multiple results
 This function may be invoked repeatedly assigning its output to different
 objects.
 Authentication can be provided by using username/password variables.
+row_limit param would limit  the number of rows in query results,
+it's an integer value allowing up to 2,147,483,647 rows. Value literal
+must be followed by L, as in row_limit = 1000000L, also see example below.
 Use [dbCanConnect()] to check if a connection can be established.
 }
 \examples{
@@ -43,7 +46,7 @@ dbConnect(Kinetica(), url = "http://localhost:9191")
 dbConnect(Kinetica(), host = "127.0.0.1", port = 9191)
 # Remote instances would also require username and password.
 dbConnect(Kinetica(), host = "127.0.0.1", port = 9191,
-  username = "username", password = "Pa$$w0rd")
+  username = "username", password = "Pa$$w0rd", row_limit = 1000000L)
 con <- dbConnect(Kinetica(), url = "http://localhost:9191")
 show(con)
 # KineticaConnection

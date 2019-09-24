@@ -6,7 +6,7 @@
 \title{dbSendStatement()}
 \usage{
 \S4method{dbSendStatement}{KineticaConnection,character}(conn, statement,
-  params = NULL, ...)
+  params = NULL, offset = NULL, limit = NULL, ...)
 }
 \arguments{
 \item{conn}{object [KineticaConnection-class]}
@@ -36,10 +36,10 @@ Other KineticaConnection methods: \code{\link{dbAppendTable,KineticaConnection-m
   \code{\link{dbListObjects,KineticaConnection-method}},
   \code{\link{dbListResults,KineticaConnection-method}},
   \code{\link{dbListTables,KineticaConnection-method}},
-  \code{\link{dbReadTable,KineticaConnection,character-method}},
+  \code{\link{dbReadTable,KineticaConnection,ANY-method}},
   \code{\link{dbRemoveTable,KineticaConnection,character-method}},
   \code{\link{dbSendQuery,KineticaConnection,character-method}},
-  \code{\link{dbWriteTable,KineticaConnection,character-method}},
+  \code{\link{dbWriteTable,KineticaConnection,ANY-method}},
   \code{\link{show,KineticaDriver-method}},
   \code{\link{sqlCreateTable,KineticaConnection-method}}
 }

@@ -3,8 +3,7 @@
 \docType{methods}
 \name{dbExecute,KineticaConnection,character-method}
 \alias{dbExecute,KineticaConnection,character-method}
-\title{dbExecute()
-Executes the statement, returning the number of affected rows or objects}
+\title{dbExecute()}
 \usage{
 \S4method{dbExecute}{KineticaConnection,character}(conn, statement, ...,
   params = NULL)
@@ -19,7 +18,6 @@ Executes the statement, returning the number of affected rows or objects}
 \item{params}{a set of values}
 }
 \description{
-dbExecute()
 Executes the statement, returning the number of affected rows or objects
 }
 \examples{
@@ -46,11 +44,11 @@ Other KineticaConnection methods: \code{\link{dbAppendTable,KineticaConnection-m
   \code{\link{dbListObjects,KineticaConnection-method}},
   \code{\link{dbListResults,KineticaConnection-method}},
   \code{\link{dbListTables,KineticaConnection-method}},
-  \code{\link{dbReadTable,KineticaConnection,character-method}},
+  \code{\link{dbReadTable,KineticaConnection,ANY-method}},
   \code{\link{dbRemoveTable,KineticaConnection,character-method}},
   \code{\link{dbSendQuery,KineticaConnection,character-method}},
   \code{\link{dbSendStatement,KineticaConnection,character-method}},
-  \code{\link{dbWriteTable,KineticaConnection,character-method}},
+  \code{\link{dbWriteTable,KineticaConnection,ANY-method}},
   \code{\link{show,KineticaDriver-method}},
   \code{\link{sqlCreateTable,KineticaConnection-method}}
 }

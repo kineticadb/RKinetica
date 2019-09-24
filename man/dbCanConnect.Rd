@@ -5,24 +5,10 @@
 \alias{dbCanConnect,KineticaDriver-method}
 \title{dbCanConnect()}
 \usage{
-\S4method{dbCanConnect}{KineticaDriver}(drv, host = NULL, port = NULL,
-  url = NULL, username = NULL, password = NULL, timeout = NULL,
-  ...)
+\S4method{dbCanConnect}{KineticaDriver}(drv, ...)
 }
 \arguments{
 \item{drv}{Kinetica driver object}
-
-\item{host}{character string for Kinetica DB host address}
-
-\item{port}{integer value for Kinetica DB port}
-
-\item{url}{character string for Kinetica DB url (protocol + host + port)}
-
-\item{username}{character string for Kinetica DB username}
-
-\item{password}{character string for Kinetica DB password}
-
-\item{timeout}{integer value for Kinetica DB connection timeout}
 
 \item{...}{Other arguments ommited in generic signature}
 }

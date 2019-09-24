@@ -3,12 +3,15 @@
 \docType{methods}
 \name{dbUnquoteIdentifier}
 \alias{dbUnquoteIdentifier}
-\alias{dbUnquoteIdentifier,KineticaConnection-method}
+\alias{dbUnquoteIdentifier,KineticaConnection,SQL-method}
+\alias{dbUnquoteIdentifier,KineticaConnection,ANY-method}
 \title{dbUnquoteIdentifier()}
 \usage{
 dbUnquoteIdentifier(conn, x, ...)
 
-\S4method{dbUnquoteIdentifier}{KineticaConnection}(conn, x, ...)
+\S4method{dbUnquoteIdentifier}{KineticaConnection,SQL}(conn, x, ...)
+
+\S4method{dbUnquoteIdentifier}{KineticaConnection,ANY}(conn, x, ...)
 }
 \arguments{
 \item{conn}{object [KineticaConnection-class]}
@@ -20,11 +23,12 @@ dbUnquoteIdentifier(conn, x, ...)
 \item{conn}{A subclass of [KineticaConnection-class], representing
 an active connection to an DBMS.}
 
-\item{x}{An [SQL] object or character vector to unquote.}
-
-\item{...}{Other arguments passed on to methods.}
+\item{conn}{A subclass of [KineticaConnection-class], representing
+an active connection to an DBMS.}
 }
 \description{
+Unescapes the DB identifier.
+
 Unescapes the DB identifier.
 
 Unescapes the DB identifier.

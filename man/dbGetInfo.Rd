@@ -45,7 +45,9 @@ dbname, driver version, client version, max number of connections
 (NA stands for unlimited)
 
 Basic properties of KineticaConnection object
-provides DB version, url, host, port and username of the current connection
+provides DB version, primary url, host, port and username of the
+current connection, flag for HA availability, HA ring of secondary
+urls and maximum row count that can be returned in one query
 
 Provides basic info on KineticaResult object
 }

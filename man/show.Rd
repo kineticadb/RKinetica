@@ -15,8 +15,6 @@
 \S4method{show}{KineticaResult}(object)
 }
 \arguments{
-\item{object}{Kinetica Driver object}
-
 \item{object}{[KineticaConnection-class]}
 
 \item{object}{[KineticaResult-class]}
@@ -63,11 +61,11 @@ Other KineticaConnection methods: \code{\link{dbAppendTable,KineticaConnection-m
   \code{\link{dbListObjects,KineticaConnection-method}},
   \code{\link{dbListResults,KineticaConnection-method}},
   \code{\link{dbListTables,KineticaConnection-method}},
-  \code{\link{dbReadTable,KineticaConnection,character-method}},
+  \code{\link{dbReadTable,KineticaConnection,ANY-method}},
   \code{\link{dbRemoveTable,KineticaConnection,character-method}},
   \code{\link{dbSendQuery,KineticaConnection,character-method}},
   \code{\link{dbSendStatement,KineticaConnection,character-method}},
-  \code{\link{dbWriteTable,KineticaConnection,character-method}},
+  \code{\link{dbWriteTable,KineticaConnection,ANY-method}},
   \code{\link{sqlCreateTable,KineticaConnection-method}}
 
 Other KineticaResult methods: \code{\link{dbBind,KineticaResult-method}},
