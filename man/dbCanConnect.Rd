@@ -10,7 +10,7 @@
 \arguments{
 \item{drv}{Kinetica driver object}
 
-\item{...}{Other arguments ommited in generic signature}
+\item{...}{Other arguments omitted in generic signature}
 }
 \description{
 Method allows to check if provided Kinetica Connection configuration could be used to connect

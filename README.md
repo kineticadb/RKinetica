@@ -25,6 +25,9 @@ Source code for the connector can be found at:
 
 * [Build & Install](#build--install)
 * [Usage](#usage)
+* [Configuring High Availablity (HA)](#configuring-high-availablity-ha)
+  * [Automatic Discovery](#automatic-discovery)
+  * [Manual Configuration](#manual-configuration)
 * [Documentation](#documentation)
 
 
@@ -49,13 +52,12 @@ so:
 install.packages(c("DBI", "rjson", "httr", "bit64", "hms", "methods"))
 ```
 
-
 If opting to build the *RKinetica* package instead of downloading, the connector
 package can be built as follows:
 
 ```
-$ git clone https://github.com/kineticadb/RKinetica.git -b release/v7.0 --single-branch
-$ R CMD build RKinetica
+git clone https://github.com/kineticadb/RKinetica.git -b release/v7.0 --single-branch
+R CMD build RKinetica
 ```
 
 This sequence produces a `tar.gz` file, which, once installed, is made
@@ -70,7 +72,7 @@ ls RKinetica*
 To install the *RKinetica* package via the command line:
 
 ```
-$ R CMD install RKinetica_7.0.0.0.tar.gz
+R CMD install RKinetica_7.0.0.0.tar.gz
 ```
 
 To install the *RKinetica* package in *RStudio* (or *R* console):
@@ -87,7 +89,7 @@ Before using *RKinetica*, the package must be loaded:
 library(RKinetica)
 ```
 
-Create a *Kinetica* connection object using the `dbConnect()` function,
+Create a *KineticaConnection* object using the `dbConnect()` method,
 passing in *Kinetica* URL, user, and password parameters:
 
 ```
@@ -96,6 +98,10 @@ con <- dbConnect(RKinetica::Kinetica(),
                  username = "<user>",
                  password = "<password>")
 ```
+
+**NOTE:** A parameter cannot be added to an existing *KineticaConnection*
+object. Instead, a new *KineticaConnection* object must be created to
+properly initialize any functionality enabled by additional parameters.
 
 **IMPORTANT:** If using *RStudio*, you can use the *rstudioapi* package to
 instead prompt for username and password:
@@ -107,8 +113,8 @@ con <- dbConnect(RKinetica::Kinetica(),
                  password = rstudioapi::askForPassword("Database password?"))
 ```
 
-If you expect the result set to exceed 10,000 rows, set the custom row_limit
-parameter value:
+If you expect a result set from your queries to exceed 10,000 rows, set the
+`row_limit` parameter value accordingly:
 
 ```
 con <- dbConnect(RKinetica::Kinetica(),
@@ -118,50 +124,79 @@ con <- dbConnect(RKinetica::Kinetica(),
                  row_limit = 1000000L)
 ```
 
-You can then use the *Kinetica* connection object as a regular DBI connection:
+You can then use the *KineticaConnection* object as a regular DBI connection.
+Some of the most common commands:
 
-```
-# Print connection info
-dbGetInfo(con)
+* Print connection info:
 
-# List top level database objects and collections with their types
-dbListObjects(con)
+  ```
+  dbGetInfo(con)
+  ```
 
-# Get a list of top level database tables and collections names
-dbListTables(con)
+* List top level database objects and collections with their types:
 
-# Drop a table if it exists
-dbRemoveTable(con, "tableA")
+  ```
+  dbListObjects(con)
+  ```
 
-# Check if the table exists
-dbExistsTable(con, "tableA")
+* Get a list of top level database tables and collections names:
 
-# Write a table with 3 columns
-dbWriteTable(con, "tableA", data.frame(a = 1L, b = 2L, c = 3.0), row.names = NULL)
+  ```
+  dbListTables(con)
+  ```
 
-# Check if the table exists now
-dbExistsTable(con, "tableA")
+* Drop a table if it exists:
 
-# List tableA fields
-dbListFields(con, "tableA")
+  ```
+  dbRemoveTable(con, "tableA")
+  ```
 
-# Add records to tableA
-dbAppendTable(con, "tableA", data.frame(a = 2L:3L, b = 3L:4L, c = 4.0:5.0), row.names = NULL)
+* Check if the table exists:
 
-# Read table into variable
-rows <- dbReadTable(con, "tableA")
-print(rows)
+  ```
+  dbExistsTable(con, "tableA")
+  ```
 
-# Disconnect
-dbDisconnect(con)
-```
+* Write a table with 3 columns:
 
-Large tables, views or query results can have pagination parameters passed
-in `dbSendQuery` or `dbSendStatement` syntax. Assuming that the `con` connection
-was established as shown above with `row_limit = 1000000L`, in the following
-example query extracts a million records from `acquisition` table sorted by `l_id`
-in an infinite loop, getting the data in one million record batches and moving
-offset by 1 million until the dbSendQuery() resultset is returned empty.
+  ```
+  dbWriteTable(con, "tableA", data.frame(a = 1L, b = 2L, c = 3.0), row.names = NULL)
+  ```
+
+* List tableA fields:
+
+  ```
+  dbListFields(con, "tableA")
+  ```
+
+* Add records to tableA:
+
+  ```
+  dbAppendTable(con, "tableA", data.frame(a = 2L:3L, b = 3L:4L, c = 4.0:5.0), row.names = NULL)
+  ```
+
+* Read table into variable:
+
+  ```
+  rows <- dbReadTable(con, "tableA")
+  print(rows)
+  ```
+
+* Disconnect:
+
+  ```
+  dbDisconnect(con)
+  ```
+
+
+Large tables, views, or query results can have pagination parameters passed into
+the `dbSendQuery` or `dbSendStatement` methods. Assuming that the
+connection was established with a row limit of 1,000,000, i.e.
+`row_limit = 1000000L`, the following example query extracts all records
+from the `acquisition` table sorted by `l_id`. The data is retrieved in
+batches of one million records and the `offset` is increased by 1 million each
+batch. This loop continues until the `dbSendQuery()` resultset is returned
+empty:
 
 ```
 sql_query <- "SELECT l_id, product_type, term, score FROM acquisition ORDER BY l_id"
@@ -184,28 +219,62 @@ repeat {
 Additional code examples are available
 [in the "examples" subdirectory](examples/).
 
+### Strings vs Factors
+
+When RKinetica reads a character list into R dataframe it can be converted into
+a factor. This option is controlled by environment property that's read into
+`as.data.frame()` parameter `stringsAsFactors`:
+
+```
+stringsAsFactors = default.stringsAsFactors()
+```
+
+To set environment option `stringsAsFactors` to TRUE or FALSE explicitly, use
+the following syntax at the beginning of your R script or once per session:
+
+```
+options(stringsAsFactors = FALSE)
+```
+
+
+### Connection option `assume_no_nulls`
+
+There is an additional connection option `assume_no_nulls` that is used to
+ensure JSON data parsing is most efficient. When the expected dataset is very
+large and the user is aware that there are no NULL values in it, a faster
+parsing library can be used to convert data from JSON to R format (this
+algorithm does not handle NULLs). The `TRUE` value of flag `assume_no_nulls`
+allows user to skip NULL-checks, while the default `FALSE` value means JSON
+parsing takes longer, but any encountered data value would be parsed and
+returned to user. If the flag is set to `TRUE` the parsing stops on the first
+encountered NULL value and throws an exception.
+
 
 ## Configuring High Availablity (HA)
 
 ### Automatic Discovery
 
-When Kinetica DB installation has been KAgent-configured for HA on two or more
-clusters, RKinetica would use automatic discovery on the primary `url`
-of KineticaConnection to set up `ha_ring` of Kinetica DB secondary urls
-that connection falls back to when the primary url fails. You don't
-need to configure environment, because RKinetica when connecting to
-Kinetica DB instance would check if HA is enabled and parse provided
-`ha_ring`. KineticaConnection has additional parameters to store this:
+When two or more Kinetica clusters have been configured for an HA ring via
+KAgent, RKinetica will automatically discover the additional Kinetica
+instance URLs available in the ring. If the connection to the URL of the primary
+cluster fails, each additional URL will be tried until a successful connection
+is established; every failed connection will result in a warning message. If
+all connection attempts fail, an error message will be thrown. Only the URL of
+the primary cluster to connect to needs to be specified (via the `url` parameter
+in the `dbConnect` method); the URLs for the failover clusters will be retrieved
+from the primary cluster upon first connecting to it. The *KineticaConnection*
+object has additional parameters to store these failover URLs (via the `ha_ring`
+parameter) as well as other connection information:
 
 ```
-con <- dbConnect(RKinetica::Kinetica(), url = "http://192.168.0.71:9191")
+con <- dbConnect(RKinetica::Kinetica(), url = "http://172.123.45.61:9191")
 dbGetInfo(con)
 
 $url
-[1] "http://192.168.0.71:9191"
+[1] "http://172.123.45.61:9191"
 
 $host
-[1] "192.168.0.71"
+[1] "172.123.45.61"
 
 $port
 [1] 9191
@@ -214,35 +283,36 @@ $ha_enabled
 [1] TRUE
 
 $ha_ring
-[1] "http://192.168.0.73:9191" "http://192.168.0.71:9191" "http://192.168.0.72:9191"
+[1] "http://172.123.45.63:9191" "http://172.123.45.61:9191" "http://172.123.45.62:9191"
 ```
 
-Urls in `ha_ring` are permutated to balance load on secondary url instances
-when primary url fails. You can use a `show(con)` on connection at any time
-to check which url from `ha_ring` is used in active connection:
+URLs in `ha_ring` list are randomly selected to balance load on secondary URL
+instances when the primary URL fails. You can use a `show()` command on a
+*KineticaConnection* object at any time to check which URL is being used in the
+current connection:
 
 ```
 show(con)
 
 <KineticaConnection>
 HA enabled
-Current url: http://192.168.0.72:9191
+Current url: http://172.123.45.62:9191
 ```
 
 ### Manual Configuration
 
-If the user wants to provide urls for backup instances manually, he can do so
-by adding the `ha_ring` parameter to connection and a comma-separated list
-of uris for secondary clusters:
+If you want to provide URLs for failover clusters manually, you can do so by
+adding the `ha_ring` parameter to the `dbConnect()` method with a
+comma-separated list of URIs for the secondary cluster(s):
 
 ```
-con <- dbConnect(RKinetica::Kinetica(), url = "http://192.168.0.71:9191",
-       ha_ring = "http://192.168.0.72:9191,http://192.168.0.73:9191")
+con <- dbConnect(RKinetica::Kinetica(), url = "http://172.123.45.61:9191",
+       ha_ring = "http://172.123.45.62:9191,http://172.123.45.63:9191")
 show(con)
 
 <KineticaConnection>
 Self-provided HA enabled
-Current url: http://192.168.0.71:9191
+Current url: http://172.123.45.61:9191
 ```
 
 

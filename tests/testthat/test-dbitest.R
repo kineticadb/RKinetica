@@ -1,62 +1,110 @@
-# ctx <- DBItest::make_context(Kinetica(), list(url = "http://localhost:9191", username = "", password = ""))
-ctx <- DBItest::make_context(
-  Kinetica(),
-  list(url = "http://localhost:9191", username = "", password = ""),
-#  set_as_default = TRUE,
-  tweaks = DBItest::tweaks(constructor_name = "Kinetica",
-                           constructor_relax_args = TRUE,
-                           strict_identifier = TRUE,
-                           omit_blob_tests = TRUE,
-                           placeholder_pattern = c("?"),
-                           logical_return = function(x) {if (is.null(x) || is.na(x)) {NULL} else {as.integer(x)}},
-                           current_needs_parens = TRUE,
-                           date_cast = function(x) paste0("\"DATE\"('", x, "')"),
-                           time_cast = function(x) paste0("\"TIME\"('", format.Date(x,"%H:%M:%S"), "')"),
-                           timestamp_cast = function(x) paste0("\"TIMESTAMP\"('", x, "')"),
-                           date_typed = TRUE,
-                           time_typed = TRUE,
-                           timestamp_typed = TRUE,
-                           temporary_tables = TRUE
-                          )
-)
-DBItest::test_getting_started()
-DBItest::test_driver()
+ctx <- return_default_context()
+# DBItest::test_all(skip = NULL, ctx)
 
-# Kinetica does not support the notion of "stale" connections, thus stale connection is not considered invalid
-DBItest::test_connection(skip = c("disconnect_invalid_connection"), ctx)
-
-DBItest::test_result(skip = c(
+# DBItest::test_getting_started(skip=NULL, ctx)
+# DBItest::test_driver(skip=NULL, ctx)
+# DBItest::test_connection(skip=NULL, ctx)
+# DBItest::test_transaction(skip = c("begin_commit_invalid", "with_transaction_error_invalid"), ctx)
+# DBItest::test_some(test = c("spec_sql_append_table", "spec_sql_write_table"), ctx)
+# DBItest::test_compliance(skip=NULL, ctx)
+DBItest::test_all(skip = c(
   # Kinetica does not support the notion of "stale" connections, since it stores only the connection configuration and
-  # does not establish a physical connection until the actual query is sent. Thus stale connection is not considered invalid
-    "send_query_invalid_connection", "get_query_invalid_connection", "execute_invalid_connection", "send_statement_invalid_connection",
+  # does not establish a physical connection until the actual query is sent via http request.
+  # Thus "stale" connection, unloaded from memory, stored outside and re-loaded again is not considered invalid.
+  "disconnect_invalid_connection", "send_query_invalid_connection", "get_query_invalid_connection",
+  "send_statement_invalid_connection", "execute_invalid_connection", "read_table_invalid_connection",
+  "write_table_invalid_connection", "list_tables_invalid_connection", "exists_table_invalid_connection",
+  "remove_table_invalid_connection", "begin_commit_invalid", "with_transaction_error_invalid",
 
-  # KineticaConnection can support multiple results per query, so no warnings should be expected for multiple result cases
-    "send_query_only_one_result_set", "send_statement_only_one_result_set",
 
-  # international language support is going to be added in later releases
-    "data_character", "data_logical",
+  # Kinetica allows TEMP namespace to be visible outside current connection
+   "table_visible_in_other_connection", "remove_table_other_con",
 
-  # full 64-bit integer support is going to be added in later releases
-    "data_64_bit_numeric", "data_64_bit_numeric_warning", "data_64_bit_lossless",
+  # The following tests have been customized for Kinetica DB, preserving
+  # dataset and actions order of the original test and replacing function call for
+  # check_identical() on results with check_equivalent().
+  # See "test-equivalent-replaces-identical.R" for customized tests for:
+  "append_table_new", "append_table",
+  "fetch_n_more_rows", "fetch_n_zero_rows", "get_query_n_zero_rows",
+  "read_table_row_names_false", "read_table_row_names_default",
+  "read_table", "read_table_row_names_na_missing",
+  "overwrite_table", "overwrite_table_missing",
+  "write_table_row_names_true_exists", "write_table_row_names_true_missing",
+  "write_table_row_names_na_exists", "write_table_row_names_na_missing",
+  "write_table_row_names_string_exists", "write_table_row_names_string_missing",
 
-  # Kinetica DB engine does not process generic ITER-based UNIONs with NULLs in the first SELECT, and generates error:
-  # 'Unable to create union from input columns due to incompatible datatypes'.
-  # A similar test case with strongly typed first SELECT statement would pass without error.
-    "data_date", "data_date_current", "data_time_current", "data_timestamp_current", "data_date_typed",
-    "data_date_current_typed", "data_timestamp_typed", "data_timestamp_current_typed", "data_time", "data_timestamp",
+  # TODO KECO-577
+  # multiquote string value support
+  "quote_string_roundtrip", "quote_string_na",
+   "roundtrip_quotes", "roundtrip_field_types", "roundtrip_keywords",
+  "roundtrip_character", "roundtrip_character_empty", "roundtrip_factor",
 
-  # Kinetica currently does not support row.names concept, it will be addressed in later versions of RKinetica.
-  # The tests listed below fail on the row.names component with NULL value being stored in character mode, not numeric mode,
-  # which makes the expected output fail identity clause, while providing a valid equality clause due to row.names storage mode only.
-    "fetch_n_more_rows", "fetch_n_zero_rows", "get_query_n_zero_rows"), ctx)
+  # TODO KECO-586
+  # integer 64 support
+   "data_64_bit_numeric", "data_64_bit_numeric_warning", "data_64_bit_lossless",
+   "roundtrip_64_bit_numeric", "roundtrip_64_bit_character",
 
-# Strings with excessive use of single quotes are going to be addressed in later versions of RKinetica
-# DBItest::test_sql(skip = NULL, ctx)
+  # TODO KECO-587
+  # date/time format convertions support
+  "data_date", "data_date_current", "data_time_current", "data_timestamp_current", "data_date_typed",
+  "data_date_current_typed", "data_timestamp_typed", "data_timestamp_current_typed", "data_time", "data_timestamp",
+  "roundtrip_date", "roundtrip_time", "roundtrip_timestamp",
 
-#DBItest::test_meta(skip = NULL, ctx)
+  # TODO KECO-575
+  # international characters string support
+  "data_character", "roundtrip_character_native",
 
-# Kinetica does not support transactions and does not perform rollbacks
-# DBItest::test_transaction(skip = c("begin_commit_return_value", "begin_rollback_return_value", "begin_begin",
-#   "begin_commit", "begin_write_commit", "begin_rollback"), ctx)
+  # TODO KECO-561
+  # logical values support
+  # "data_logical",
+  "roundtrip_logical",
 
-# DBItest::test_compliance(skip = c("compliance", ellipsis"), ctx)
+  # TODO KECO-561
+  # infinity support
+  "roundtrip_numeric_special", "roundtrip_null",
+
+  # TODO KECO-588
+  # row.names string to factor support
+  "roundtrip_mixed",
+
+  # KECO-1238 Kinetica transaction management
+  # Kinetica does not support transactions at all, but RKinetica provides a fake transaction wrapper object
+  # for the sake of dplyr compatibility. Transaction object has BEGIN/COMMIT/ROLLBACK states
+  # and satisfies DBI tests as long as no data rollbacks are expected.
+  # The tests listed fail on functionality not supported because of transaction rollback.
+  "begin_write_rollback", "begin_write_disconnect", "with_transaction_failure", "with_transaction_break",
+
+  # TODO KECO-1265
+  # To pass compliance, RKinetica package needs graceful load/unload and redefined environment
+  "compliance", "ellipsis",
+
+  # Bind operation on return value, or binding parameters by number or name are not supported by Kinetica DB.
+  "bind_return_value", "bind_wrong_name", "bind_named_param_unnamed_placeholders",
+  "bind_named_param_empty_placeholders", "bind_named_param_na_placeholders", "bind_repeated",
+  "bind_repeated_untouched", "column_info", "get_info_result",
+
+  # Multirow binding is supported by Kinetica, but bind operation on return value is not.
+  "bind_multi_row", "bind_multi_row_zero_length", "bind_multi_row_statement",
+
+  # TODO needs error message clarification
+  "send_query_only_one_result_set", "send_statement_only_one_result_set", "roundtrip_integer", "roundtrip_numeric",
+
+  # TODO needs error message clarification: closed connection
+  "read_table_closed_connection", "remove_table_closed_connection", "get_statement_statement", "temporary_table",
+
+
+  # The following tests fail due to unsupported value cast syntax, not because of the data type tested.
+  # Cast of return parameter name is not allowed.
+  # TODO Adding a custom Kinetica test suite to redefine functionality with supported SQL is going to be addressed in future releases.
+  "bind_integer", "bind_numeric", "bind_logical", "bind_null", "bind_character", "bind_factor", "bind_date",
+  "bind_timestamp", "bind_timestamp_lt",
+
+
+  # Kinetica DB does not support table names with embedded comma
+  #"read_table_name", "write_table_name",
+  "exists_table_error", "exists_table_name",
+
+  # KECO-1625 Tests to be customized later for purrr/rjson object identity compliance
+  "data_integer", "data_numeric", "data_logical", "write_table_error"
+
+  ), ctx)

@@ -2,7 +2,7 @@
 
 ## Constants
 .KineticaPkgName <- "RKinetica"
-.KineticaVersion <- "7.0.1.0"
+.KineticaVersion <- "7.0.1.1"
 
 
 #' Class KineticaDriver
@@ -64,7 +64,7 @@ Kinetica()
 #' @rdname dbUnloadDriver
 #' @family KineticaDriver methods
 #' @param drv Kinetica driver object
-#' @param ... Other arguments ommited in generic signature
+#' @param ... Other arguments omitted in generic signature
 #' @export
 setMethod("dbUnloadDriver", "KineticaDriver", function(drv, ...) {
   if(length(ls(drv@connections)>0)) {
@@ -84,7 +84,7 @@ setMethod("dbUnloadDriver", "KineticaDriver", function(drv, ...) {
 #' @rdname dbCanConnect
 #' @family KineticaDriver methods
 #' @param drv Kinetica driver object
-#' @param ... Other arguments ommited in generic signature
+#' @param ... Other arguments omitted in generic signature
 #' @export
 #' @examples
 #' \dontrun{
@@ -126,7 +126,7 @@ setMethod("dbCanConnect", "KineticaDriver",
 #' @rdname dbGetInfo
 #' @family KineticaDriver methods
 #' @param dbObj an object derived of [KineticaDriver-class] type
-#' @param ... Other arguments ommited in generic signature
+#' @param ... Other arguments omitted in generic signature
 #' @export
 #' @examples
 #' \donttest{
@@ -160,7 +160,7 @@ setMethod("dbGetInfo", "KineticaDriver",
 #' @family KineticaDriver methods
 #' @rdname dbIsValid
 #' @param dbObj an object of [KineticaDriver-class] type
-#' @param ... Other arguments ommited in generic signature
+#' @param ... Other arguments omitted in generic signature
 #' @export
 #' @examples
 #' \dontrun{
@@ -196,7 +196,7 @@ setMethod("show", "KineticaDriver", function(object) {
 #' @family KineticaDriver methods
 #' @rdname dbListConnections
 #' @param drv an object of [KineticaDriver-class] type
-#' @param ... Other arguments ommited in generic signature
+#' @param ... Other arguments omitted in generic signature
 #' @export
 setMethod("dbListConnections", "KineticaDriver", function(drv, ...) {
   if (!dbIsValid(drv)) {
@@ -213,7 +213,7 @@ setMethod("dbListConnections", "KineticaDriver", function(drv, ...) {
 #' @family KineticaDriver methods
 #' @param dbObj KineticaDriver object
 #' @param obj any data object or literal
-#' @param ... Other arguments ommited in generic signature
+#' @param ... Other arguments omitted in generic signature
 #' @importFrom bit64 integer64 is.integer64
 #' @export
 #' @examples
@@ -285,7 +285,7 @@ setMethod("dbDataType", "KineticaDriver", function(dbObj, obj, ...) {
 #' @param username character string for Kinetica DB username
 #' @param password character string for Kinetica DB password
 #' @param timeout  integer value for Kinetica DB connection timeout
-#' @param ... Other arguments ommited in generic signature
+#' @param ... Other arguments omitted in generic signature
 #' @export
 #' @examples
 #' \dontrun{
@@ -305,12 +305,13 @@ setMethod("dbDataType", "KineticaDriver", function(dbObj, obj, ...) {
 #'}
 setMethod("dbConnect", "KineticaDriver",
   function(drv, host = NULL, port = NULL, url = NULL, username = NULL, password = NULL, timeout = NULL,
-           row_limit = NULL, ha_ring = NULL, ...) {
+           row_limit = NULL, ha_ring = NULL, assume_no_nulls = NULL, ...) {
     username <- ifelse(is.null(username), "", username)
     password <- ifelse(is.null(password), "", password)
     timeout <- ifelse(is.null(timeout), 0L, as.integer(timeout))
     row_limit <- ifelse((missing(row_limit) || is.null(row_limit) || !is.numeric(row_limit)),
                           10000L, as.integer(row_limit))
+    assume_no_nulls <- ifelse(is.null(assume_no_nulls), FALSE, as.logical(assume_no_nulls))
 
     if (!is.null(host) && !nchar(host)==0) {
       # format url
@@ -372,7 +373,7 @@ setMethod("dbConnect", "KineticaDriver",
                  username = username, password = password, timeout = timeout, ptr = ptr,
                  db.version = version, results = results, transaction = transaction,
                  row_limit = row_limit, ha_enabled = ha_enabled, ha_ring = ha_ring,
-                 ha_ptr = ha_ptr, ...)
+                 ha_ptr = ha_ptr, assume_no_nulls = assume_no_nulls, ...)
     drv@connections[[conn@ptr]] <- conn
 
     return (conn)

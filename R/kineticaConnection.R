@@ -25,6 +25,8 @@
 #' @slot ha_enabled logical flag if KineticaDB instance provides HA ring
 #' @slot ha_ring a ring of HA urls to be used when primary url fails
 #' @slot ha_ptr a local environment storing pointer at the active url
+#' @slot assume_no_nulls logical flag for faster record parsing which
+#' requires that no NULL values are present in the incoming dataset
 #' @slot results a local environment storing active query results
 #' @export
 setClass("KineticaConnection",
@@ -44,6 +46,7 @@ setClass("KineticaConnection",
            ha_enabled = "logical",
            ha_ring = "character",
            ha_ptr = "environment",
+           assume_no_nulls = "logical",
            results = "environment"
          )
 )
@@ -87,7 +90,7 @@ setMethod("show", "KineticaConnection", function(object) {
 #' @family KineticaConnection methods
 #' @rdname dbGetInfo
 #' @param dbObj object [KineticaConnection-class]
-#' @param ...  Other arguments ommited in generic signature
+#' @param ...  Other arguments omitted in generic signature
 #' @export
 #' @examples
 #' \dontrun{
@@ -132,7 +135,7 @@ setMethod("dbGetInfo", "KineticaConnection",
 #' @param conn an object of [KineticaConnection-class]
 #' @param name character string for table name
 #' @param value A data frame. Factors will be converted to character vectors.
-#' @param ...  Other arguments ommited in generic signature
+#' @param ...  Other arguments omitted in generic signature
 #' @param row.names a flag with logical, character or NULL value
 #' @export
 setMethod("dbAppendTable", "KineticaConnection",
@@ -368,7 +371,7 @@ setMethod ("dbCreateTable", "KineticaConnection",
 #' @family KineticaConnection methods
 #' @param dbObj an object of [KineticaConnection-class]
 #' @param obj generic object
-#' @param ... Other arguments ommited in generic signature
+#' @param ... Other arguments omitted in generic signature
 #' @export
 setMethod("dbDataType", signature("KineticaConnection", "ANY"),
     function(dbObj, obj, ...) {
@@ -528,7 +531,7 @@ setMethod("dbGetQuery", signature("KineticaConnection", "character"),
 #' Thus RKinetica accepts stale connections as valid, and allows multiple results per connection.
 #' @family KineticaConnection methods
 #' @param dbObj A [KineticaConnection-class] object
-#' @param ...  Other arguments ommited in generic signature
+#' @param ...  Other arguments omitted in generic signature
 #' @export
 #' @examples
 #' \dontrun{
@@ -633,7 +636,7 @@ setMethod("dbListResults", signature("KineticaConnection"),
 #' @rdname dbListTables
 #' @param conn an object of [KineticaConnection-class]
 #' @param name character
-#' @param ...  Other arguments ommited in generic signature
+#' @param ...  Other arguments omitted in generic signature
 #' @export
 setMethod("dbListTables", signature("KineticaConnection"),
     function(conn, name, ...) {
@@ -657,7 +660,7 @@ setMethod("dbListTables", signature("KineticaConnection"),
 #' @param name a character string table name
 #' @param row.names a logical flag to create extra row_names column
 #' @param check.names a logical flag to check names
-#' @param ...  Other arguments ommited in generic signature
+#' @param ...  Other arguments omitted in generic signature
 #' @export
 setMethod("dbReadTable", "KineticaConnection",
   function(conn, name, ..., row.names = FALSE, check.names = TRUE) {
@@ -694,7 +697,7 @@ setMethod("dbReadTable", "KineticaConnection",
 #' @rdname dbRemoveTable
 #' @param conn an object of [KineticaConnection-class]
 #' @param name character string for table name
-#' @param ...  Other arguments ommited in generic signature
+#' @param ...  Other arguments omitted in generic signature
 #' @export
 setMethod("dbRemoveTable",  signature("KineticaConnection", "character"),
   function(conn, name, ...) {
@@ -721,7 +724,7 @@ setMethod("dbRemoveTable",  signature("KineticaConnection", "character"),
 #' @param conn object [KineticaConnection-class]
 #' @param statement character
 #' @param params a list of query named parameters
-#' @param ...  Other arguments ommited in generic signature
+#' @param ...  Other arguments omitted in generic signature
 #' @export
 setMethod("dbSendQuery", signature(conn ="KineticaConnection", statement = "character"),
     function(conn, statement, params = NULL, offset = NULL, limit = NULL, ...) {
@@ -753,7 +756,7 @@ setMethod("dbSendQuery", signature(conn ="KineticaConnection", statement = "char
 #' @param conn object [KineticaConnection-class]
 #' @param statement character
 #' @param params a list of query named parameters
-#' @param ...  Other arguments ommited in generic signature
+#' @param ...  Other arguments omitted in generic signature
 #' @export
 setMethod("dbSendStatement", signature(conn ="KineticaConnection", statement = "character"),
     function(conn, statement, params = NULL, offset = NULL, limit = NULL, ...) {
@@ -791,7 +794,7 @@ setMethod("dbSendStatement", signature(conn ="KineticaConnection", statement = "
 #' @param append a logical flag to preserve existing data and append new records
 #' @param field.types a named character vector of value field names and types
 #' @param temporary a logical flag to create table as temporary storage
-#' @param ...  Other arguments ommited in generic signature
+#' @param ...  Other arguments omitted in generic signature
 #' @export
 #' @examples
 #' \dontrun{
@@ -921,3 +924,76 @@ setMethod("dbWriteTable", signature("KineticaConnection"),
     FALSE
   }
 }
+
+#' dbBegin()
+#'
+#' Executes the statement, returning the number of affected rows or objects
+#' @family KineticaConnection methods
+#' @name transactions
+#' @param conn an object of [KineticaConnection-class]
+#' @param ... Other parameters passed on to methods.
+#' @export
+setMethod("dbBegin", "KineticaConnection",
+  function(conn, ...) {
+    if (!dbIsValid(conn)) {
+      stop("Invalid Kinetica Connection", call. = FALSE)
+    }
+    if (exists("status", envir = as.environment(conn@transaction), inherits = FALSE)) {
+      stop("Nested transactions are not supported", call. = FALSE)
+    } else {
+      conn@transaction[["status"]] <- "BEGIN"
+    }
+
+    invisible(TRUE)
+  })
+
+#' dbCommit()
+#'
+#' Executes the statement, returning the number of affected rows or objects
+#' @family KineticaConnection methods
+#' @rdname transactions
+#' @param conn an object of [KineticaConnection-class]
+#' @param ... Other parameters passed on to methods.
+#' @export
+setMethod("dbCommit", "KineticaConnection",
+  function(conn, ...) {
+    if (!dbIsValid(conn)) {
+      stop("Invalid Kinetica Connection", call. = FALSE)
+    }
+
+    if (exists("status", envir = as.environment(conn@transaction), inherits = FALSE)
+        && conn@transaction[["status"]] == "BEGIN") {
+      conn@transaction[["status"]] <- "COMMIT"
+      # transaction "comitted", object in memory is destroyed
+      rm(list = "status", envir = as.environment(conn@transaction), inherits = FALSE)
+    } else {
+      stop("No transaction started, nothing to commit", call. = FALSE)
+    }
+    invisible(TRUE)
+  })
+
+#' dbRollback()
+#'
+#' Executes the statement, returning the number of affected rows or objects
+#' @family KineticaConnection methods
+#' @rdname transactions
+#' @param conn an object of [KineticaConnection-class]
+#' @param ... Other parameters passed on to methods.
+#' @export
+setMethod("dbRollback", "KineticaConnection",
+  function(conn, ...) {
+    if (!dbIsValid(conn)) {
+      stop("Invalid Kinetica Connection", call. = FALSE)
+    }
+    if (exists("status", envir = as.environment(conn@transaction), inherits = FALSE)
+        && conn@transaction[["status"]] == "BEGIN") {
+      conn@transaction[["status"]] <- "ROLLBACK"
+      # transaction "rolled back", object in memory is destroyed
+      rm(list = "status", envir = as.environment(conn@transaction), inherits = FALSE)
+    } else {
+      stop("No transaction started, nothing to roll back", call. = FALSE)
+    }
+
+    invisible(TRUE)
+  })
+

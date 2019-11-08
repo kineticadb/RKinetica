@@ -12,7 +12,7 @@
 
 \item{obj}{any data object or literal}
 
-\item{...}{Other arguments ommited in generic signature}
+\item{...}{Other arguments omitted in generic signature}
 }
 \description{
 Takes an R object or literal and returns a matching SQLtype

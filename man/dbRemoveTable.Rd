@@ -12,7 +12,7 @@
 
 \item{name}{character string for table name}
 
-\item{...}{Other arguments ommited in generic signature}
+\item{...}{Other arguments omitted in generic signature}
 }
 \description{
 Drops the table with the given name if one exists
@@ -36,6 +36,7 @@ Other KineticaConnection methods: \code{\link{dbAppendTable,KineticaConnection-m
   \code{\link{dbSendStatement,KineticaConnection,character-method}},
   \code{\link{dbWriteTable,KineticaConnection,ANY-method}},
   \code{\link{show,KineticaDriver-method}},
-  \code{\link{sqlCreateTable,KineticaConnection-method}}
+  \code{\link{sqlCreateTable,KineticaConnection-method}},
+  \code{\link{transactions}}
 }
 \concept{KineticaConnection methods}

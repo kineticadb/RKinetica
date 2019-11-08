@@ -1,0 +1,11 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^LICENSE\.md$
+^VERSION$
+^README\.md$
+^examples$
+^.RData$
+^.Rhistory$
+^.gitignore$
+^.Rproj.user$
+^.git$

@@ -4,11 +4,13 @@
 #' @include kineticaSQL.R
 
 #' @import httr
+#' @importFrom stats setNames
 #' @import rjson
 #' @import bit64
+#' @import purrr
 
 # constants
-.empty_set <- setNames(rjson::fromJSON('{}'), character(0))
+.empty_set <- stats::setNames(rjson::fromJSON('{}'), character(0))
 
 # endpoint
 .show_system_properties <- "/show/system/properties"
@@ -170,7 +172,6 @@ execute_sql <- function(conn = "KineticaConnection", statement = "character", of
   options <- .options_execute_sql
 
   placeholder_data <- list()
-
   resp <- .post(conn, .execute_sql,
     body = list(statement = statement, offset = offset, limit = limit, encoding ="json", request_schema_str = "", data = placeholder_data),
     options = options)
@@ -178,24 +179,51 @@ execute_sql <- function(conn = "KineticaConnection", statement = "character", of
   data_raw <- rjson::fromJSON(content(resp)$data_str)
   json_obj <- rjson::fromJSON(data_raw$json_encoded_response)
 
-  col_names <- as.character(json_obj$column_headers)
-
-  data_fields <- as.character(lapply(json_obj$column_datatypes, .RtypeFromKinetica))
-
-  names(data_fields) <- col_names
+  # pick out colnames and datatypes
+  col_names <- json_obj$column_headers
+  data_fields <- json_obj$column_datatypes
+  json_obj$column_headers <- NULL
+  json_obj$column_datatypes <- NULL
 
   if (missing(prepare_mode) || !is.logical(prepare_mode)) {
     prepare_mode <- FALSE
   }
 
-  if (no_return_data || prepare_mode) {
-    dataset <- data.frame()
-  } else if (data_raw$total_number_of_records > 0) {
-    dataset <- kineticaJSONtoDataFrame(as.character(data_raw$json_encoded_response))
+  if (no_return_data || prepare_mode || is.null(unlist(json_obj))) {
+    df <- NULL
+    dataset <- skeletonDataFrame(col_names, data_fields)
   } else {
-    dataset <- skeletonDataFrame(as.character(data_raw$json_encoded_response))
+    if (conn@assume_no_nulls == TRUE) {
+      # Speedy purrr::map2_dfc data parsing
+      tryCatch({
+        df <- purrr::map2_dfc(json_obj, sapply(data_fields, conversion_fn),
+                            function(x, y) do.call(y, list(x)))
+      }, error = function(e) {
+        stop(paste0("There was a NULL value in JSON dataset, fast-parsing failed.\n",
+        "You can reconnect with assume_no_nulls=FALSE option to rerun your query.\n",
+        e$message))
+      })
+      colnames(df) <- col_names
+
+      dataset <- as.data.frame(
+        df,
+        row.names = NULL,
+        optional = FALSE,
+        cut.names = FALSE,
+        col.names = js$column_headers,
+        fix.empty.names = TRUE,
+        stringsAsFactors = default.stringsAsFactors()
+      )
+
+    } else {
+      # Slower NULL-handling rjson data parsing
+      df <- skeletonDataFrame(col_names, data_fields)
+      names(json_obj) <- col_names
+      dataset <- rbind(df, json_obj)
+    }
   }
 
+  names(data_fields) <- col_names
   result <- KineticaResult(
     connection = conn,
     statement = statement,
@@ -207,7 +235,8 @@ execute_sql <- function(conn = "KineticaConnection", statement = "character", of
     offset = offset,
     limit = limit,
     paging_table = data_raw$paging_table)
-  on.exit(rm(resp, data_raw, json_obj, col_names, data_fields, dataset))
+
+  on.exit(rm(resp, data_raw, json_obj, col_names, data_fields, df, dataset))
   return(result)
 }
 
@@ -220,81 +249,77 @@ has_return_data <- function(statement) {
   return(startsWith(statement, "SELECT") || startsWith(statement, "DESC") || startsWith(statement, "SHOW"))
 }
 
-
-# Internal function that converts Kinetica JSON data to R data.frame
-#' @importFrom bit64 integer64 as.integer64
-kineticaJSONtoDataFrame <- function (str){
-  js = rjson::fromJSON(str)
-  temp = as.data.frame(lapply(seq_along(js$column_datatypes), function (inx) {
-    type = js$column_datatypes[inx]
-    conversion_fn = NULL
-    if (type %in% c('int', 'int16', 'integer')) {
-      conversion_fn = as.integer
-    } else if (type == 'int8') {
-      conversion_fn = as.logical
-    } else if (type == 'long') {
-      conversion_fn = as.integer
-    } else if (type %in% c('char1', 'char2', 'char4', 'char8', 'char16', 'char32', 'char64', 'char128', 'char256', 'string', 'ipv4')) {
-      conversion_fn = as.character
-    } else if (type %in% c('double', 'float', 'decimal')) {
-      conversion_fn = as.numeric
-    } else if (type %in% c('datetime', 'date')) {
-      conversion_fn = function(x) as.character.Date(x, tryFormats = c("%Y-%m-%d",  "%Y-%m-%d %H:%M:%S", "%Y/%m/%d"), origin="1900-01-01", optional = FALSE)
-    } else if (type == 'time') {
-      conversion_fn = function(x) hms::as.hms(x)
-    } else if (type == 'timestamp') {
-      conversion_fn = function(x) {
-        stopifnot(is.numeric(x))
-        as.POSIXct(x/1000, tzone = "UTC", origin = "1970-01-01")
-      }
-    } else {
-      stop (paste('Unknown type:', type))
-    }
-    sapply(js[[paste('column', inx, sep = '_')]],
-           FUN = function(x) {
-             conversion_fn(ifelse(is.null(x), NA,  x))
-           },
-           simplify = TRUE)
-  }), row.names = NULL, optional = FALSE, cut.names = FALSE, col.names = js$column_headers,
-  fix.empty.names = TRUE, stringsAsFactors = default.stringsAsFactors())
-}
-
 # Internal function that creates a blank data.frame based on JSON schema
-skeletonDataFrame <- function(str){
-  js = rjson::fromJSON(str)
-  df = data.frame()
-  for (i in 1:length(js$column_headers)) {
-    type <- js$column_datatypes[i]
+skeletonDataFrame <- function(column_headers, column_datatypes){
+  df = data.frame(stringsAsFactors = default.stringsAsFactors())
+  for (i in 1:length(column_headers)) {
+    type <- column_datatypes[i]
 
-    if (type %in% c('int', 'int16', 'integer')) {
-      df[js$column_headers[i]] = integer(0)
-    } else if (type == 'int8') {
-      df[js$column_headers[i]] = logical(0)
-    } else if (type == 'long') {
-      df[js$column_headers[i]] = integer(0) # bit64::integer64(0)
-    } else if (type %in% c('char1', 'char2', 'char4', 'char8', 'char16', 'char32', 'char64', 'char128', 'char256', 'string', 'ipv4')) {
-      df[js$column_headers[i]] = character(0)
+    if (type %in% c('int', 'int8', 'int16', 'integer', 'long')) {
+      df[column_headers[i]] = integer(0)
+    } else if (type %in% c('char1', 'char2', 'char4', 'char8', 'char16', 'char32', 'char64',
+              'char128', 'char256', 'string', 'ipv4', 'wkt', 'geography', 'geometry')) {
+      df[column_headers[i]] = character(0)
     } else if (type %in% c('double', 'float', 'decimal')) {
-      df[js$column_headers[i]] = numeric(0)
+      df[column_headers[i]] = numeric(0)
     } else if (type %in% c('datetime', 'date')) {
-      df[js$column_headers[i]] = as.character.Date(rep(NA,0))
+      df[column_headers[i]] = as.character.Date(rep(NA,0))
     } else if (type == 'time') {
-      df[js$column_headers[i]] = hms::hms()
+      df[column_headers[i]] = hms::hms()
     } else if (type == 'timestamp') {
-      df[js$column_headers[i]] = .POSIXct(rep(NA,0))
+      df[column_headers[i]] = .POSIXct(rep(NA,0))
+    } else if (type == 'bytes') {
+      df[column_headers[i]] = raw(0)
     } else {
-      df[js$column_headers[i]] = character(0)
+      df[column_headers[i]] = character(0)
     }
   }
   row.names(df) = NULL
   return(df)
 }
 
+# Internal function that converts Kinetica data types to R types
+conversion_fn  <- function(type) {
+  # if character or numeric then it's automatically picked up
+  if (type %in% c('char1', 'char2', 'char4', 'char8', 'char16', 'char32',
+                  'char64', 'char128', 'char256', 'string', 'ipv4',
+                  'wkt', 'geography', 'geometry')) {
+    conversion_fn = function(x) x
+  } else if (type %in% c('int', 'int8', 'int16', 'integer', 'long')) {
+    conversion_fn = as.integer
+  } else if (type %in% c('double', 'float', 'decimal')) {
+    conversion_fn = as.numeric
+  } else if (type %in% c('datetime', 'date')) {
+    conversion_fn = function(x)
+      as.character.Date(
+        x,
+        tryFormats=c("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y/%m/%d"),
+        origin = "1900-01-01",
+        optional = FALSE
+      )
+  } else if (type == 'time') {
+    conversion_fn = function(x) hms::as_hms(x)
+  } else if (type == 'timestamp') {
+    conversion_fn = function(x) {
+      stopifnot(is.numeric(x))
+      as.POSIXct(x / 1000, origin = "1970-01-01")
+      attr(x, "tzone") <- "UTC"
+      x
+    }
+  } else if (type == 'bytes') {
+    conversion_fn = as.raw
+  } else {
+    stop (paste('Unknown type:', type))
+  }
+}
+
+
 # const HTTP headers
 .headers <- c(Accept = "application/json", "Accept-Encoding" = "UTF-8", "Content-Type" = "application/json")
 
 # Internal function that wraps POST request with HA ring request failover
 .post <- function(conn = "KineticaConnection", endpoint = "character", body = "ANY", options = "ANY") {
+
   primary_connection_refused <- ""
   tryCatch({
     resp = .try_connection(url = .get_url(conn), endpoint = endpoint, username = conn@username, password = conn@password,
@@ -384,59 +409,4 @@ skeletonDataFrame <- function(str){
     current <- as.integer(conn@ha_ptr[["current"]])
     return (conn@ha_ring[[current]])
   }
-}
-
-# Internal function that maps R types to Kinetica internal types
-.KineticaTypeFromR <- function(x) {
-  x <- as.character(x)
-  switch(x,
-    "logical" = "int8",
-    "integer" = "integer",
-    "integer64" = "long",
-    "double" = "decimal",
-    "bytes" = "raw",
-    "factor" = "char256",
-    "character.Date" = "datetime",
-    "character" = "char256",
-    "numeric.POSIXt" = "timestamp",
-    stop(paste0("Unsupported R type, can't map to a known Kinetica type", x))
-    )
-
-}
-
-# Internal function that maps Kinetica internal types to R types
-.RtypeFromKinetica <- function(x) {
-  x <- as.character(x)
-    switch(x,
-           "int8" = "logical",
-           "int" = "integer",
-           "integer" = "integer",
-           "int16" = "integer",
-           "long" = "integer",
-
-           "float" = "double",
-           "double" = "double",
-           "decimal" = "double",
-
-           "bytes" = "raw",
-
-           "string" = "character",
-           "char256" = "character",
-           "char128" = "character",
-           "char64" = "character",
-           "char32" = "character",
-           "char16" = "character",
-           "char8" = "character",
-           "char4" = "character",
-           "char2" = "character",
-           "char1" = "character",
-           "ipv4" = "character",
-
-           "date" = "character.Date",
-           "time" = "character.Date",
-           "datetime" = "character.Date",
-           "timestamp" = "numeric.POSIXt",
-           stop(paste0("Unknown Kinetica type, can't migrate to R data ", x))
-          )
-
 }

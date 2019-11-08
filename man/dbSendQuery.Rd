@@ -15,7 +15,7 @@
 
 \item{params}{a list of query named parameters}
 
-\item{...}{Other arguments ommited in generic signature}
+\item{...}{Other arguments omitted in generic signature}
 }
 \description{
 Executes SQL query and returns a result set. The returned result object should be read with dbFetch(result) and
@@ -40,6 +40,7 @@ Other KineticaConnection methods: \code{\link{dbAppendTable,KineticaConnection-m
   \code{\link{dbSendStatement,KineticaConnection,character-method}},
   \code{\link{dbWriteTable,KineticaConnection,ANY-method}},
   \code{\link{show,KineticaDriver-method}},
-  \code{\link{sqlCreateTable,KineticaConnection-method}}
+  \code{\link{sqlCreateTable,KineticaConnection-method}},
+  \code{\link{transactions}}
 }
 \concept{KineticaConnection methods}

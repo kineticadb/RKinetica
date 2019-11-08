@@ -7,7 +7,7 @@
 \usage{
 \S4method{dbConnect}{KineticaDriver}(drv, host = NULL, port = NULL,
   url = NULL, username = NULL, password = NULL, timeout = NULL,
-  row_limit = NULL, ha_ring = NULL, ...)
+  row_limit = NULL, ha_ring = NULL, assume_no_nulls = NULL, ...)
 }
 \arguments{
 \item{drv}{Kinetica driver object}
@@ -24,7 +24,7 @@
 
 \item{timeout}{integer value for Kinetica DB connection timeout}
 
-\item{...}{Other arguments ommited in generic signature}
+\item{...}{Other arguments omitted in generic signature}
 }
 \description{
 Connect to a Kinetica DB going through the appropriate authentication procedure.

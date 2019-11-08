@@ -24,11 +24,11 @@ dbGetInfo(dbObj, ...)
 
 \item{dbObj}{an object derived of [KineticaDriver-class] type}
 
-\item{...}{Other arguments ommited in generic signature}
+\item{...}{Other arguments omitted in generic signature}
 
 \item{dbObj}{object [KineticaConnection-class]}
 
-\item{...}{Other arguments ommited in generic signature}
+\item{...}{Other arguments omitted in generic signature}
 
 \item{dbObj}{[KineticaResult-class]}
 
@@ -103,13 +103,14 @@ Other KineticaConnection methods: \code{\link{dbAppendTable,KineticaConnection-m
   \code{\link{dbListObjects,KineticaConnection-method}},
   \code{\link{dbListResults,KineticaConnection-method}},
   \code{\link{dbListTables,KineticaConnection-method}},
-  \code{\link{dbReadTable,KineticaConnection,character-method}},
+  \code{\link{dbReadTable,KineticaConnection,ANY-method}},
   \code{\link{dbRemoveTable,KineticaConnection,character-method}},
   \code{\link{dbSendQuery,KineticaConnection,character-method}},
   \code{\link{dbSendStatement,KineticaConnection,character-method}},
-  \code{\link{dbWriteTable,KineticaConnection,character-method}},
+  \code{\link{dbWriteTable,KineticaConnection,ANY-method}},
   \code{\link{show,KineticaDriver-method}},
-  \code{\link{sqlCreateTable,KineticaConnection-method}}
+  \code{\link{sqlCreateTable,KineticaConnection-method}},
+  \code{\link{transactions}}
 
 Other KineticaResult methods: \code{\link{dbBind,KineticaResult-method}},
   \code{\link{dbClearResult,KineticaResult-method}},

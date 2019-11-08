@@ -23,7 +23,7 @@ or a [KineticaResult-class]}
 
 \item{dbObj}{an object of [KineticaDriver-class] type}
 
-\item{...}{Other arguments ommited in generic signature}
+\item{...}{Other arguments omitted in generic signature}
 
 \item{dbObj}{[KineticaResult-class]}
 

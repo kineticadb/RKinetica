@@ -16,7 +16,7 @@
 
 \item{value}{a [data.frame] (or object coercible to data.frame)}
 
-\item{...}{Other arguments ommited in generic signature}
+\item{...}{Other arguments omitted in generic signature}
 
 \item{row.names}{a logical flag, NULL or chaacter value to create extra row_names column}
 
@@ -60,6 +60,7 @@ Other KineticaConnection methods: \code{\link{dbAppendTable,KineticaConnection-m
   \code{\link{dbSendQuery,KineticaConnection,character-method}},
   \code{\link{dbSendStatement,KineticaConnection,character-method}},
   \code{\link{show,KineticaDriver-method}},
-  \code{\link{sqlCreateTable,KineticaConnection-method}}
+  \code{\link{sqlCreateTable,KineticaConnection-method}},
+  \code{\link{transactions}}
 }
 \concept{KineticaConnection methods}

@@ -2,6 +2,18 @@
 
 ## Version 7.0
 
+### Version 7.0.1.1 -- 2019-11-04
+
+#### Added
+
+-   Connection option `assume_no_nulls` to allow faster
+    JSON deserializing of Kinetica result when the expected
+    result is not expected to contian NULL values. When the
+    flag `assume_no_nulls=TRUE`, JSON parsing uses *purrr*
+    library for faster data processing. When flag value is
+    `FALSE` (default value), it uses *rjson* to provide
+    accurate NULL-handling.
+
 ### Version 7.0.1.0 -- 2019-09-21
 
 #### Added

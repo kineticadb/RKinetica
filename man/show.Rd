@@ -66,7 +66,8 @@ Other KineticaConnection methods: \code{\link{dbAppendTable,KineticaConnection-m
   \code{\link{dbSendQuery,KineticaConnection,character-method}},
   \code{\link{dbSendStatement,KineticaConnection,character-method}},
   \code{\link{dbWriteTable,KineticaConnection,ANY-method}},
-  \code{\link{sqlCreateTable,KineticaConnection-method}}
+  \code{\link{sqlCreateTable,KineticaConnection-method}},
+  \code{\link{transactions}}
 
 Other KineticaResult methods: \code{\link{dbBind,KineticaResult-method}},
   \code{\link{dbClearResult,KineticaResult-method}},

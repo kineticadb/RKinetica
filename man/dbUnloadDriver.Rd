@@ -10,7 +10,7 @@
 \arguments{
 \item{drv}{Kinetica driver object}
 
-\item{...}{Other arguments ommited in generic signature}
+\item{...}{Other arguments omitted in generic signature}
 }
 \description{
 Unload RKinetica Driver, releasing memory from Driver connections and embedded results

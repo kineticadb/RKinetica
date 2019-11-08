@@ -10,7 +10,7 @@
 \arguments{
 \item{drv}{an object of [KineticaDriver-class] type}
 
-\item{...}{Other arguments ommited in generic signature}
+\item{...}{Other arguments omitted in generic signature}
 }
 \description{
 Lists all active connections in KineticaDriver's connection pool

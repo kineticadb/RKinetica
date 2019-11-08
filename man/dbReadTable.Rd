@@ -13,7 +13,7 @@
 
 \item{name}{a character string table name}
 
-\item{...}{Other arguments ommited in generic signature}
+\item{...}{Other arguments omitted in generic signature}
 
 \item{row.names}{a logical flag to create extra row_names column}
 
@@ -42,6 +42,7 @@ Other KineticaConnection methods: \code{\link{dbAppendTable,KineticaConnection-m
   \code{\link{dbSendStatement,KineticaConnection,character-method}},
   \code{\link{dbWriteTable,KineticaConnection,ANY-method}},
   \code{\link{show,KineticaDriver-method}},
-  \code{\link{sqlCreateTable,KineticaConnection-method}}
+  \code{\link{sqlCreateTable,KineticaConnection-method}},
+  \code{\link{transactions}}
 }
 \concept{KineticaConnection methods}

@@ -74,7 +74,7 @@ setMethod("show", "KineticaResult", function(object) {
   cat("<", is(object)[1], ">\n", sep = "")
   cat("KineticaConnection url:", object@connection@url, "\n",
       "statement: ", object@statement,"\n",
-      "dataset with", length(object@fields), "columns and", object@total_number_of_records,  "rows\n",
+      "dataset with", ncol(object@data), "columns and", nrow(object@data),  "rows\n",
       "columns: \n", paste(names(object@fields), object@fields, sep = ":", collapse = ", "),"\n"
   )
 })
