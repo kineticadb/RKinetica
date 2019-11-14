@@ -964,7 +964,7 @@ setMethod("dbCommit", "KineticaConnection",
     if (exists("status", envir = as.environment(conn@transaction), inherits = FALSE)
         && conn@transaction[["status"]] == "BEGIN") {
       conn@transaction[["status"]] <- "COMMIT"
-      # transaction "comitted", object in memory is destroyed
+      # transaction "commited", object in memory is destroyed
       rm(list = "status", envir = as.environment(conn@transaction), inherits = FALSE)
     } else {
       stop("No transaction started, nothing to commit", call. = FALSE)

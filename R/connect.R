@@ -203,24 +203,21 @@ execute_sql <- function(conn = "KineticaConnection", statement = "character", of
         "You can reconnect with assume_no_nulls=FALSE option to rerun your query.\n",
         e$message))
       })
-      colnames(df) <- col_names
-
-      dataset <- as.data.frame(
-        df,
-        row.names = NULL,
-        optional = FALSE,
-        cut.names = FALSE,
-        col.names = js$column_headers,
-        fix.empty.names = TRUE,
-        stringsAsFactors = default.stringsAsFactors()
-      )
-
     } else {
-      # Slower NULL-handling rjson data parsing
-      df <- skeletonDataFrame(col_names, data_fields)
-      names(json_obj) <- col_names
-      dataset <- rbind(df, json_obj)
+      # Slower NULL-handling purrr::map2_dfc data parsing
+        df <- purrr::map2_dfc(json_obj, sapply(data_fields, safe_conversion_fn),
+                            function(x, y) do.call(y, list(x)))
     }
+    colnames(df) <- col_names
+    dataset <- as.data.frame(
+      df,
+      row.names = NULL,
+      optional = FALSE,
+      cut.names = FALSE,
+      col.names = col_names,
+      fix.empty.names = TRUE,
+      stringsAsFactors = FALSE #default.stringsAsFactors()
+    )
   }
 
   names(data_fields) <- col_names
@@ -238,6 +235,20 @@ execute_sql <- function(conn = "KineticaConnection", statement = "character", of
 
   on.exit(rm(resp, data_raw, json_obj, col_names, data_fields, df, dataset))
   return(result)
+}
+
+# Internal function that replaces NULL values with NA
+replace_null <- function(x) {
+  if (is.null(x)) {
+    NA
+  } else {
+    x
+  }
+}
+
+# Internal buffer function between conversion_fn and NULL values
+safe_convert <- function(x, conversion_fn, ...) {
+  conversion_fn(unlist(purrr::modify(x, replace_null)), ...)
 }
 
 # Internal function that preprocesses SQL statements
@@ -278,22 +289,22 @@ skeletonDataFrame <- function(column_headers, column_datatypes){
   return(df)
 }
 
-# Internal function that converts Kinetica data types to R types
+# Internal function that fast-maps Kinetica type to conversion function
 conversion_fn  <- function(type) {
   # if character or numeric then it's automatically picked up
   if (type %in% c('char1', 'char2', 'char4', 'char8', 'char16', 'char32',
                   'char64', 'char128', 'char256', 'string', 'ipv4',
                   'wkt', 'geography', 'geometry')) {
-    conversion_fn = function(x) x
+    conversion_fn = as.character
   } else if (type %in% c('int', 'int8', 'int16', 'integer', 'long')) {
     conversion_fn = as.integer
-  } else if (type %in% c('double', 'float', 'decimal')) {
+  } else if (type %in% c('double', 'float', 'decimal', 'ulong')) {
     conversion_fn = as.numeric
   } else if (type %in% c('datetime', 'date')) {
     conversion_fn = function(x)
       as.character.Date(
         x,
-        tryFormats=c("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y/%m/%d"),
+        tryFormats=c("%Y-%m-%d %H:%M:%OS", "%Y-%m-%d", "%Y/%m/%d"),
         origin = "1900-01-01",
         optional = FALSE
       )
@@ -308,6 +319,45 @@ conversion_fn  <- function(type) {
     }
   } else if (type == 'bytes') {
     conversion_fn = as.raw
+  } else {
+    stop (paste('Unknown type:', type))
+  }
+}
+
+# Internal function that safely maps Kinetica type to conversion function
+safe_conversion_fn  <- function(type) {
+
+  # if character or numeric then it's automatically picked up
+  if (type %in% c('char1', 'char2', 'char4', 'char8', 'char16', 'char32',
+                  'char64', 'char128', 'char256', 'string', 'ipv4',
+                  'wkt', 'geography', 'geometry')) {
+    safe_conversion_fn = function(x) safe_convert(x, as.character)
+  } else if (type %in% c('int', 'int8', 'int16', 'integer', 'long')) {
+    safe_conversion_fn = function(x) safe_convert(x, as.integer)
+  } else if (type %in% c('double', 'float', 'decimal', 'ulong')) {
+    safe_conversion_fn = function(x) safe_convert(x, as.numeric)
+  } else if (type %in% c('datetime', 'date')) {
+    safe_conversion_fn = function(x)
+      safe_convert(
+        x,
+        as.character.Date,
+        tryFormats=c("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y/%m/%d"),
+        origin = "1900-01-01",
+        optional = FALSE
+      )
+  } else if (type == 'time') {
+    safe_conversion_fn = function(x) safe_convert(x, hms::as_hms)
+  } else if (type == 'timestamp') {
+    safe_conversion_fn = function(x) {
+      safe_convert(
+        x/1000, function(y) {
+          y <- as.POSIXct(y, origin = "1970-01-01")
+          attr(y, "tzone") <- "UTC"
+          y
+        })
+    }
+  } else if (type == 'bytes') {
+    safe_conversion_fn = function(x) safe_convert(x, as.raw)
   } else {
     stop (paste('Unknown type:', type))
   }

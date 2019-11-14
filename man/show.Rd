@@ -31,7 +31,7 @@ Brief string printout of [KineticaResult-class] object properties
 \dontrun{
 drv <- Kinetica()
 show(drv)
-#  KineticaDriver 7.0.0.0
+#  KineticaDriver 7.0.1.2
 }
 \dontrun{
 con <- dbConnect(d, url = "http://localhost:9191")

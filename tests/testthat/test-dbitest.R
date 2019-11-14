@@ -24,19 +24,13 @@ DBItest::test_all(skip = c(
   # dataset and actions order of the original test and replacing function call for
   # check_identical() on results with check_equivalent().
   # See "test-equivalent-replaces-identical.R" for customized tests for:
-  "append_table_new", "append_table",
-  "fetch_n_more_rows", "fetch_n_zero_rows", "get_query_n_zero_rows",
-  "read_table_row_names_false", "read_table_row_names_default",
-  "read_table", "read_table_row_names_na_missing",
-  "overwrite_table", "overwrite_table_missing",
-  "write_table_row_names_true_exists", "write_table_row_names_true_missing",
-  "write_table_row_names_na_exists", "write_table_row_names_na_missing",
-  "write_table_row_names_string_exists", "write_table_row_names_string_missing",
+  "append_table", "fetch_n_more_rows", "fetch_n_zero_rows", "get_query_n_zero_rows",
+  "read_table_error", "overwrite_table_missing", "write_table_row_names_true_missing",
 
   # TODO KECO-577
   # multiquote string value support
-  "quote_string_roundtrip", "quote_string_na",
-   "roundtrip_quotes", "roundtrip_field_types", "roundtrip_keywords",
+  "quote_string_roundtrip",
+  "roundtrip_quotes", "roundtrip_field_types", "roundtrip_keywords",
   "roundtrip_character", "roundtrip_character_empty", "roundtrip_factor",
 
   # TODO KECO-586
@@ -46,9 +40,9 @@ DBItest::test_all(skip = c(
 
   # TODO KECO-587
   # date/time format convertions support
-  "data_date", "data_date_current", "data_time_current", "data_timestamp_current", "data_date_typed",
-  "data_date_current_typed", "data_timestamp_typed", "data_timestamp_current_typed", "data_time", "data_timestamp",
-  "roundtrip_date", "roundtrip_time", "roundtrip_timestamp",
+  # "data_date", "data_date_current", "data_time_current", "data_timestamp_current",
+  "data_date_typed", "data_date_current_typed", "data_timestamp_typed", "data_timestamp_current_typed",
+  "data_time", "data_timestamp", "roundtrip_date", "roundtrip_time", "roundtrip_timestamp",
 
   # TODO KECO-575
   # international characters string support
@@ -56,7 +50,6 @@ DBItest::test_all(skip = c(
 
   # TODO KECO-561
   # logical values support
-  # "data_logical",
   "roundtrip_logical",
 
   # TODO KECO-561
@@ -101,10 +94,6 @@ DBItest::test_all(skip = c(
 
 
   # Kinetica DB does not support table names with embedded comma
-  #"read_table_name", "write_table_name",
-  "exists_table_error", "exists_table_name",
-
-  # KECO-1625 Tests to be customized later for purrr/rjson object identity compliance
-  "data_integer", "data_numeric", "data_logical", "write_table_error"
+  "exists_table_error", "exists_table_name", "write_table_error"
 
   ), ctx)

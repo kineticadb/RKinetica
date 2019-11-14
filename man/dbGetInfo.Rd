@@ -60,9 +60,9 @@ dbGetInfo(drv)
 # dbname
 #  "Kinetica"
 # driver.version
-#  "7.0.0.0"
+#  "7.0.1.2"
 # client.version
-#  "7.0.0.0"
+#  "7.0.1.2"
 # max.connections
 #  NA
 }

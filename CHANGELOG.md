@@ -2,6 +2,13 @@
 
 ## Version 7.0
 
+### Version 7.0.1.2 -- 2019-11-14
+
+#### Fixed
+
+-   An error in NULL-handling behavior logic of `FALSE` path
+    of `assume_no_nulls` connection option. 
+    
 ### Version 7.0.1.1 -- 2019-11-04
 
 #### Added
