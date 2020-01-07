@@ -36,12 +36,6 @@ setMethod("show", "SQL", function(object) {
   cat(paste0("<SQL> ", object, collapse = "\n"), "\n", sep = "")
 })
 
-#' @export
-`[.SQL` <- function(x, ...) SQL(NextMethod())
-
-#' @export
-`[[.SQL` <- function(x, ...) SQL(NextMethod())
-
 #' dbQuoteIdentifier()
 #'
 #' Escapes the provided character vector as SQL indetifier.

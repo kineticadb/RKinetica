@@ -40,7 +40,8 @@ DBItest::test_all(skip = c(
 
   # TODO KECO-587
   # date/time format convertions support
-  # "data_date", "data_date_current", "data_time_current", "data_timestamp_current",
+  # "data_date", "data_date_current", "data_time_current",
+  "data_timestamp_current",
   "data_date_typed", "data_date_current_typed", "data_timestamp_typed", "data_timestamp_current_typed",
   "data_time", "data_timestamp", "roundtrip_date", "roundtrip_time", "roundtrip_timestamp",
 

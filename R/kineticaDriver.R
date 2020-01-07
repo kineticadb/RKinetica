@@ -2,7 +2,7 @@
 
 ## Constants
 .KineticaPkgName <- "RKinetica"
-.KineticaVersion <- "7.0.1.2"
+.KineticaVersion <- getNamespaceVersion(.KineticaPkgName)
 
 
 #' Class KineticaDriver
@@ -18,6 +18,7 @@
 #'
 #' @keywords internal
 #' @docType class
+#' @name KineticaDriver-class
 #' @aliases KineticaDriver,Kinetica
 #' @export
 #' @import DBI
@@ -305,13 +306,12 @@ setMethod("dbDataType", "KineticaDriver", function(dbObj, obj, ...) {
 #'}
 setMethod("dbConnect", "KineticaDriver",
   function(drv, host = NULL, port = NULL, url = NULL, username = NULL, password = NULL, timeout = NULL,
-           row_limit = NULL, ha_ring = NULL, assume_no_nulls = NULL, ...) {
+           row_limit = NULL, ha_ring = NULL, ...) {
     username <- ifelse(is.null(username), "", username)
     password <- ifelse(is.null(password), "", password)
     timeout <- ifelse(is.null(timeout), 0L, as.integer(timeout))
     row_limit <- ifelse((missing(row_limit) || is.null(row_limit) || !is.numeric(row_limit)),
                           10000L, as.integer(row_limit))
-    assume_no_nulls <- ifelse(is.null(assume_no_nulls), FALSE, as.logical(assume_no_nulls))
 
     if (!is.null(host) && !nchar(host)==0) {
       # format url
@@ -373,7 +373,7 @@ setMethod("dbConnect", "KineticaDriver",
                  username = username, password = password, timeout = timeout, ptr = ptr,
                  db.version = version, results = results, transaction = transaction,
                  row_limit = row_limit, ha_enabled = ha_enabled, ha_ring = ha_ring,
-                 ha_ptr = ha_ptr, assume_no_nulls = assume_no_nulls, ...)
+                 ha_ptr = ha_ptr, ...)
     drv@connections[[conn@ptr]] <- conn
 
     return (conn)

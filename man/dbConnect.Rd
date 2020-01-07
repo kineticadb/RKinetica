@@ -7,7 +7,7 @@
 \usage{
 \S4method{dbConnect}{KineticaDriver}(drv, host = NULL, port = NULL,
   url = NULL, username = NULL, password = NULL, timeout = NULL,
-  row_limit = NULL, ha_ring = NULL, assume_no_nulls = NULL, ...)
+  row_limit = NULL, ha_ring = NULL, ...)
 }
 \arguments{
 \item{drv}{Kinetica driver object}

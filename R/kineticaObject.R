@@ -32,6 +32,17 @@ setGeneric("dbIsReadOnly",
            def = function(dbObj, ...) standardGeneric("dbIsReadOnly"),
            valueClass = "logical")
 
+#' @rdname dbIsReadOnly
+setMethod("dbIsReadOnly", "KineticaObject", function(dbObj, ...) {
+  # TODO: dynamically retrieve user access privileges (KECO-1673)
+  if (class(dbObj) == "KineticaDriver" || class(dbObj) == "KineticaConnection"
+      || class(dbObj) == "KineticaResult")
+    FALSE
+  else {
+    TRUE
+  }
+})
+
 #' dbGetInfo()
 #'
 #' Generic dbGetInfo() implementation.

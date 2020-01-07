@@ -5,12 +5,12 @@
 
 #' @import httr
 #' @importFrom stats setNames
-#' @import rjson
+#' @import RJSONIO
 #' @import bit64
 #' @import purrr
 
 # constants
-.empty_set <- stats::setNames(rjson::fromJSON('{}'), character(0))
+.empty_set <- stats::setNames(RJSONIO::fromJSON('{}'), character(0))
 
 # endpoint
 .show_system_properties <- "/show/system/properties"
@@ -18,7 +18,7 @@
 # Internal function that verifies that Kinetica DB is accessible as a single
 # instance or HA-enabled ring and returns Kinetica DB configuration properties
 show_system_properties <- function(url = "character", username = "character", password = "character", ha_ring = "character") {
-
+  secondary_connection_refused <- NULL
   tryCatch({
     # Try connecting with primary URL
     primary_connection_refused <- ""
@@ -26,7 +26,7 @@ show_system_properties <- function(url = "character", username = "character", pa
 
     # Established connection with primary url
     if (status_code(resp) == 200) {
-      data <- rjson::fromJSON(content(resp)$data_str)
+      data <- RJSONIO::fromJSON(content(resp)$data_str, nullValue=NA, simplifyWithNames = FALSE)
       on.exit(rm(data))
       # Return Kinetica DB instance properties
       return (data$property_map)
@@ -61,7 +61,7 @@ show_system_properties <- function(url = "character", username = "character", pa
       tryCatch ({
         resp <- .try_connection(url = uri, endpoint = .show_system_properties, username = username, password = password)
         if (status_code(resp) == 200) {
-          data <- rjson::fromJSON(content(resp)$data_str)
+          data <- RJSONIO::fromJSON(content(resp)$data_str, nullValue=NA, simplifyWithNames = FALSE)
           on.exit(rm(data))
           # On success, return secondary Kinetica DB instance properties
           return (data$property_map)
@@ -91,7 +91,7 @@ show_system_properties <- function(url = "character", username = "character", pa
 # Internal function that checks that table exists by table name
 has_table <- function(conn = "KineticaConnection", name = "character") {
   resp <- .post(conn, .has_table, body = list(table_name = name), options = I(.empty_set))
-  rjson::fromJSON(content(resp)$data_str)$table_exists
+  RJSONIO::fromJSON(content(resp)$data_str, nullValue=NA, simplifyWithNames = FALSE)$table_exists
 }
 
 # endpoint
@@ -102,12 +102,12 @@ has_table <- function(conn = "KineticaConnection", name = "character") {
 show_tables <- function(conn = "KineticaConnection", name = "character") {
   tryCatch({
     resp <- .post(conn, .show_table, body = list(table_name = name), options = .options_show_collection_tables)
-    data <- fromJSON(content(resp)$data_str)
+    data <- fromJSON(content(resp)$data_str, nullValue=NA, simplifyWithNames = FALSE)
     as.character(data$table_names)
   },
   error = function(e) {
     resp <- .post(conn, .show_table, body = list(table_name = ""), options = .options_show_collection_tables)
-    data <- fromJSON(content(resp)$data_str)
+    data <- fromJSON(content(resp)$data_str, nullValue=NA, simplifyWithNames = FALSE)
     t_names <- as.character(data$table_names)
     found <- grep(name, t_names)
     t_names[found]
@@ -118,7 +118,7 @@ show_tables <- function(conn = "KineticaConnection", name = "character") {
 show_objects <- function(conn = "KineticaConnection", name = "character") {
   tryCatch({
     resp <- .post(conn, .show_table, body = list(table_name = name), options = .options_show_collection_tables)
-    data <- fromJSON(content(resp)$data_str)
+    data <- fromJSON(content(resp)$data_str, nullValue=NA, simplifyWithNames = FALSE)
     t_names <- as.character(data$table_names)
     t_types <- as.character(data$table_descriptions)
     is_prefix <- (t_types == rep("COLLECTION", length(t_types)))
@@ -126,7 +126,7 @@ show_objects <- function(conn = "KineticaConnection", name = "character") {
   },
   error = function(e) {
     resp <- .post(conn, .show_table, body = list(table_name = ""), options = .options_show_collection_tables)
-    data <- fromJSON(content(resp)$data_str)
+    data <- fromJSON(content(resp)$data_str, nullValue=NA, simplifyWithNames = FALSE)
     t_names <- as.character(data$table_names)
     found <- grep(name, t_names)
 
@@ -176,8 +176,8 @@ execute_sql <- function(conn = "KineticaConnection", statement = "character", of
     body = list(statement = statement, offset = offset, limit = limit, encoding ="json", request_schema_str = "", data = placeholder_data),
     options = options)
 
-  data_raw <- rjson::fromJSON(content(resp)$data_str)
-  json_obj <- rjson::fromJSON(data_raw$json_encoded_response)
+  data_raw <- RJSONIO::fromJSON(content(resp)$data_str, nullValue=NA, simplifyWithNames = FALSE)
+  json_obj <- RJSONIO::fromJSON(data_raw$json_encoded_response, nullValue=NA, simplifyWithNames = FALSE)
 
   # pick out colnames and datatypes
   col_names <- json_obj$column_headers
@@ -193,21 +193,14 @@ execute_sql <- function(conn = "KineticaConnection", statement = "character", of
     df <- NULL
     dataset <- skeletonDataFrame(col_names, data_fields)
   } else {
-    if (conn@assume_no_nulls == TRUE) {
       # Speedy purrr::map2_dfc data parsing
-      tryCatch({
-        df <- purrr::map2_dfc(json_obj, sapply(data_fields, conversion_fn),
-                            function(x, y) do.call(y, list(x)))
-      }, error = function(e) {
-        stop(paste0("There was a NULL value in JSON dataset, fast-parsing failed.\n",
-        "You can reconnect with assume_no_nulls=FALSE option to rerun your query.\n",
-        e$message))
-      })
-    } else {
-      # Slower NULL-handling purrr::map2_dfc data parsing
-        df <- purrr::map2_dfc(json_obj, sapply(data_fields, safe_conversion_fn),
-                            function(x, y) do.call(y, list(x)))
-    }
+    tryCatch({
+      df <- purrr::map2_dfc(json_obj, sapply(data_fields, conversion_fn),
+                          function(x, y) do.call(y, list(x)))
+    }, error = function(e) {
+      stop(paste0("There was an error during JSON data parsing.\n",
+      e$message))
+    })
     colnames(df) <- col_names
     dataset <- as.data.frame(
       df,
@@ -216,7 +209,7 @@ execute_sql <- function(conn = "KineticaConnection", statement = "character", of
       cut.names = FALSE,
       col.names = col_names,
       fix.empty.names = TRUE,
-      stringsAsFactors = FALSE #default.stringsAsFactors()
+      stringsAsFactors = default.stringsAsFactors()
     )
   }
 
@@ -235,20 +228,6 @@ execute_sql <- function(conn = "KineticaConnection", statement = "character", of
 
   on.exit(rm(resp, data_raw, json_obj, col_names, data_fields, df, dataset))
   return(result)
-}
-
-# Internal function that replaces NULL values with NA
-replace_null <- function(x) {
-  if (is.null(x)) {
-    NA
-  } else {
-    x
-  }
-}
-
-# Internal buffer function between conversion_fn and NULL values
-safe_convert <- function(x, conversion_fn, ...) {
-  conversion_fn(unlist(purrr::modify(x, replace_null)), ...)
 }
 
 # Internal function that preprocesses SQL statements
@@ -323,46 +302,6 @@ conversion_fn  <- function(type) {
     stop (paste('Unknown type:', type))
   }
 }
-
-# Internal function that safely maps Kinetica type to conversion function
-safe_conversion_fn  <- function(type) {
-
-  # if character or numeric then it's automatically picked up
-  if (type %in% c('char1', 'char2', 'char4', 'char8', 'char16', 'char32',
-                  'char64', 'char128', 'char256', 'string', 'ipv4',
-                  'wkt', 'geography', 'geometry')) {
-    safe_conversion_fn = function(x) safe_convert(x, as.character)
-  } else if (type %in% c('int', 'int8', 'int16', 'integer', 'long')) {
-    safe_conversion_fn = function(x) safe_convert(x, as.integer)
-  } else if (type %in% c('double', 'float', 'decimal', 'ulong')) {
-    safe_conversion_fn = function(x) safe_convert(x, as.numeric)
-  } else if (type %in% c('datetime', 'date')) {
-    safe_conversion_fn = function(x)
-      safe_convert(
-        x,
-        as.character.Date,
-        tryFormats=c("%Y-%m-%d %H:%M:%S", "%Y-%m-%d", "%Y/%m/%d"),
-        origin = "1900-01-01",
-        optional = FALSE
-      )
-  } else if (type == 'time') {
-    safe_conversion_fn = function(x) safe_convert(x, hms::as_hms)
-  } else if (type == 'timestamp') {
-    safe_conversion_fn = function(x) {
-      safe_convert(
-        x/1000, function(y) {
-          y <- as.POSIXct(y, origin = "1970-01-01")
-          attr(y, "tzone") <- "UTC"
-          y
-        })
-    }
-  } else if (type == 'bytes') {
-    safe_conversion_fn = function(x) safe_convert(x, as.raw)
-  } else {
-    stop (paste('Unknown type:', type))
-  }
-}
-
 
 # const HTTP headers
 .headers <- c(Accept = "application/json", "Accept-Encoding" = "UTF-8", "Content-Type" = "application/json")

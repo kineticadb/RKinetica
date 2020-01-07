@@ -43,7 +43,7 @@ Other KineticaConnection methods: \code{\link{dbAppendTable,KineticaConnection-m
   \code{\link{dbExecute,KineticaConnection,character-method}},
   \code{\link{dbGetInfo}},
   \code{\link{dbGetQuery,KineticaConnection,character-method}},
-  \code{\link{dbIsValid,KineticaConnection-method}},
+  \code{\link{dbIsValid}},
   \code{\link{dbListFields,KineticaConnection,character-method}},
   \code{\link{dbListObjects,KineticaConnection-method}},
   \code{\link{dbListResults,KineticaConnection-method}},

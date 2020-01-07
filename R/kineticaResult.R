@@ -171,7 +171,6 @@ setGeneric("dbFetch",
 #'   special values.
 #' @param ... Other arguments passed on to methods.
 #' @export
-#' @export
 setMethod("dbFetch", signature("KineticaResult"), function(res, n = -1, ...) {
   if (!dbIsValid(res)) {
     stop("This result has been cleared already", call. = FALSE)

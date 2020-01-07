@@ -49,7 +49,7 @@ Otherwise, all packages can be installed via *RStudio* (or the *R* console) like
 so:
 
 ```
-install.packages(c("DBI", "rjson", "httr", "bit64", "hms", "methods"))
+install.packages(c("DBI", "RJSONIO", "httr", "bit64", "hms", "methods", "purrr", "stats", "dplyr"))
 ```
 
 If opting to build the *RKinetica* package instead of downloading, the connector
@@ -235,19 +235,6 @@ the following syntax at the beginning of your R script or once per session:
 ```
 options(stringsAsFactors = FALSE)
 ```
-
-
-### Connection option `assume_no_nulls`
-
-There is an additional connection option `assume_no_nulls` that is used to
-ensure JSON data parsing is most efficient. When the expected dataset is very
-large and the user is aware that there are no NULL values in it, a faster
-parsing library can be used to convert data from JSON to R format (this
-algorithm does not handle NULLs). The `TRUE` value of flag `assume_no_nulls`
-allows user to skip NULL-checks, while the default `FALSE` value means JSON
-parsing takes longer, but any encountered data value would be parsed and
-returned to user. If the flag is set to `TRUE` the parsing stops on the first
-encountered NULL value and throws an exception.
 
 
 ## Configuring High Availablity (HA)

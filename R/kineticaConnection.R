@@ -25,7 +25,6 @@
 #' @slot ha_enabled logical flag if KineticaDB instance provides HA ring
 #' @slot ha_ring a ring of HA urls to be used when primary url fails
 #' @slot ha_ptr a local environment storing pointer at the active url
-#' @slot assume_no_nulls logical flag for faster record parsing which
 #' requires that no NULL values are present in the incoming dataset
 #' @slot results a local environment storing active query results
 #' @export
@@ -46,7 +45,6 @@ setClass("KineticaConnection",
            ha_enabled = "logical",
            ha_ring = "character",
            ha_ptr = "environment",
-           assume_no_nulls = "logical",
            results = "environment"
          )
 )
@@ -191,7 +189,7 @@ setGeneric("sqlAppendTable",
 )
 
 #' @export
-setMethod("sqlAppendTable", signature("DBIConnection"),
+setMethod("sqlAppendTable", signature("KineticaConnection"),
     function(con, table, values, row.names = NA, ...) {
       if(!is.list(values)) {
         stop(paste("Values are not in expected format", values), call. = FALSE)
@@ -526,10 +524,12 @@ setMethod("dbGetQuery", signature("KineticaConnection", "character"),
 #' dbIsValid()
 #'
 #' Checks if the connection is valid
+#'
 #' RKinetica Connection is a configuration of url, username and password to establish
 #' connection to Kinetica DB, configuration does not go stale when memory objects get swapped to file.
 #' Thus RKinetica accepts stale connections as valid, and allows multiple results per connection.
 #' @family KineticaConnection methods
+#' @rdname dbIsValid
 #' @param dbObj A [KineticaConnection-class] object
 #' @param ...  Other arguments omitted in generic signature
 #' @export
@@ -542,9 +542,12 @@ setMethod("dbGetQuery", signature("KineticaConnection", "character"),
 #'}
 setMethod("dbIsValid", signature("KineticaConnection"),
   function(dbObj, ...) {
-    exists(as.character(dbObj@ptr), envir = as.environment(dbObj@drv@connections), inherits = FALSE)
-  }
-)
+    if (class(dbObj) == "KineticaConnection") {
+      exists(as.character(dbObj@ptr), envir = as.environment(dbObj@drv@connections), inherits = FALSE)
+    } else {
+      FALSE
+    }
+})
 
 
 #' dbListFields()

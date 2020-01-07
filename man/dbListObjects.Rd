@@ -29,7 +29,7 @@ Other KineticaConnection methods: \code{\link{dbAppendTable,KineticaConnection-m
   \code{\link{dbExistsTable,KineticaConnection,character-method}},
   \code{\link{dbGetInfo}},
   \code{\link{dbGetQuery,KineticaConnection,character-method}},
-  \code{\link{dbIsValid,KineticaConnection-method}},
+  \code{\link{dbIsValid}},
   \code{\link{dbListFields,KineticaConnection,character-method}},
   \code{\link{dbListResults,KineticaConnection-method}},
   \code{\link{dbListTables,KineticaConnection-method}},

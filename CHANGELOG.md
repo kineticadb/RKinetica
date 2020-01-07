@@ -2,13 +2,26 @@
 
 ## Version 7.0
 
+### Version 7.0.1.3 -- 2020-01-07
+
+#### Fixed
+
+-   An error in JSON deserialization associated with
+    handling non-JSON special literals NaN and Infinity.
+
+#### Removed
+
+    Connection option `assume_no_nulls`, since all JSON
+    parsing is done through RJSONIO package with built-in
+    NULL-handling.
+
 ### Version 7.0.1.2 -- 2019-11-14
 
 #### Fixed
 
 -   An error in NULL-handling behavior logic of `FALSE` path
-    of `assume_no_nulls` connection option. 
-    
+    of `assume_no_nulls` connection option.
+
 ### Version 7.0.1.1 -- 2019-11-04
 
 #### Added

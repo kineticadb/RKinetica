@@ -16,7 +16,7 @@ return_default_context <- function() {
   options(stringsAsFactors = FALSE)
   ctx <- DBItest::make_context(
   Kinetica(),
-  list(url = "http://localhost:9191", username = "", password = "", assume_no_nulls = FALSE),
+  list(url = "http://localhost:9191", username = "", password = ""),
   #  set_as_default = TRUE,
   tweaks = DBItest::tweaks(constructor_name = "Kinetica",
                            constructor_relax_args = TRUE,
