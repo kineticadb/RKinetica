@@ -56,7 +56,7 @@ If opting to build the *RKinetica* package instead of downloading, the connector
 package can be built as follows:
 
 ```
-git clone https://github.com/kineticadb/RKinetica.git -b release/v7.0 --single-branch
+git clone https://github.com/kineticadb/RKinetica.git -b release/v7.1 --single-branch
 R CMD build RKinetica
 ```
 
@@ -72,13 +72,13 @@ ls RKinetica*
 To install the *RKinetica* package via the command line:
 
 ```
-R CMD install RKinetica_7.0.0.0.tar.gz
+R CMD install RKinetica_7.1.0.0.tar.gz
 ```
 
 To install the *RKinetica* package in *RStudio* (or *R* console):
 
 ```
-> install.packages("/path/to/RKinetica_7.0.0.0.tar.gz", repos = NULL, type = "source")
+> install.packages("/path/to/RKinetica_7.1.0.0.tar.gz", repos = NULL, type = "source")
 ```
 
 ## Usage

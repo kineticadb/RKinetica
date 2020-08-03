@@ -138,9 +138,9 @@ setMethod("dbCanConnect", "KineticaDriver",
 #' # dbname
 #' #  "Kinetica"
 #' # driver.version
-#' #  "7.0.1.2"
+#' #  "7.1.0.0"
 #' # client.version
-#' #  "7.0.1.2"
+#' #  "7.1.0.0"
 #' # max.connections
 #' #  NA
 #'}
@@ -183,7 +183,7 @@ setMethod("dbIsValid", signature("KineticaDriver"),
 #' \dontrun{
 #' drv <- Kinetica()
 #' show(drv)
-#' #  KineticaDriver 7.0.1.2
+#' #  KineticaDriver 7.1.0.0
 #' }
 setMethod("show", "KineticaDriver", function(object) {
   cat("<", is(object)[1], " ", .KineticaVersion, ">\n", sep = "")
@@ -453,4 +453,3 @@ setMethod("dbConnect", "KineticaDriver",
     uris
   }
 }
-
