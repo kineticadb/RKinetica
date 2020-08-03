@@ -1,2 +1,0 @@
-Branch 'release/v7.1' created 2020-08-03 12:15:31
-Previous commit: 910d0e54f205006f57911090cb2c832aeba96df9 2020-01-07 18:52:51 -0500

@@ -60,16 +60,16 @@ dbGetInfo(drv)
 # dbname
 #  "Kinetica"
 # driver.version
-#  "7.0.1.2"
+#  "7.1.0.0"
 # client.version
-#  "7.0.1.2"
+#  "7.1.0.0"
 # max.connections
 #  NA
 }
 \dontrun{
 con <- dbConnect(d, url = "http://localhost:9191")
 # db.version
-# "7.0.0.0"
+# "7.1.0.0"
 # dbname
 # "Kinetica"
 # url
