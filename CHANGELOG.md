@@ -1,14 +1,5 @@
 # RKinetica Connector Changelog
 
-## Version 7.1
-
-### Version 7.1.0.0 -- 2020-07-27
-
-#### Changed
-
--   Version release
-
-
 ## Version 7.0
 
 ### Version 7.0.1.3 -- 2020-01-07

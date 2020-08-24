@@ -94,7 +94,7 @@ setMethod("show", "KineticaConnection", function(object) {
 #' \dontrun{
 #' con <- dbConnect(d, url = "http://localhost:9191")
 #' # db.version
-#' # "7.1.0.0"
+#' # "7.0.0.0"
 #' # dbname
 #' # "Kinetica"
 #' # url
@@ -999,3 +999,4 @@ setMethod("dbRollback", "KineticaConnection",
 
     invisible(TRUE)
   })
+
