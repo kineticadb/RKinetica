@@ -44,31 +44,44 @@ setMethod("show", "SQL", function(object) {
 #' @param ... Other arguments passed on to methods.
 #' @export
 setGeneric("dbQuoteIdentifier",
-           def = function(conn, x, ...) standardGeneric("dbQuoteIdentifier")
+    def = function(conn, x, ...) standardGeneric("dbQuoteIdentifier")
 )
 
 
 quote_identifier <-
   function(conn, x, ...) {
+    # When the argument is a KineticaId object, quote each naming part individually
+    if (is(x, "KineticaId")) {
+      return(SQL(paste0(dbQuoteIdentifier(conn, x@name), collapse = ".")))
+    }
 
+    # When the argument is a wrapped SQL statement, don't quote it
     if (is(x, "SQL")) return(x)
-    # if (is(x, "Id")) {
-    #   return(SQL(paste0(dbQuoteIdentifier(conn, x@name), collapse = ".")))
-    # }
+
+    # When the argument is not a string, error out
     if (!is.character(x)) stop("x must be character or SQL", call. = FALSE)
 
+    # When any of the argument parts are NULL, error out
     if (any(is.na(x))) {
       stop("Cannot pass NA to dbQuoteIdentifier()", call. = FALSE)
     }
+    # Encode value as UTF8
     x <- gsub('"', '""', enc2utf8(x))
 
+    # Wrap empty vector as SQL statement without quoting content
     if (length(x) == 0L) {
       SQL(character(), names = names(x))
     } else {
       # Not calling encodeString() here to keep things simple
-      SQL(paste('"', x, '" ', sep = ""), names = names(x))
+      # Surrownd string argument in quotes if it has not been quoted already and
+      # wrap in SQL statement class
+      str <- ifelse (stringr::str_detect(x, '"'), x, paste('"', x, '"', sep = ""))
+      str[is.na(x)] <- "NULL"
+      SQL(str)
     }
-}
+  }
+
+
 #' dbQuoteIdentifier()
 #'
 #' Escapes the provided character vector as SQL indetifier.
@@ -76,29 +89,6 @@ quote_identifier <-
 #' @export
 setMethod("dbQuoteIdentifier", signature("KineticaConnection"), quote_identifier)
 
-#' dbQuoteIdentifier()
-#'
-#' Escapes the provided character vector as SQL indetifier.
-#' @rdname dbQuoteIdentifier
-#' @param conn object [KineticaConnection-class]
-#' @param x a character vector or SQL object
-#' @param ... Other arguments passed on to methods.
-#' @export
-setMethod("dbQuoteIdentifier", signature("KineticaConnection", "character"),
-          function(conn, x, ...) quote_identifier(conn = conn, x = x, ...)
-)
-
-#' dbQuoteIdentifier()
-#'
-#' Escapes the provided character vector as SQL indetifier.
-#' @rdname dbQuoteIdentifier
-#' @param conn object [KineticaConnection-class]
-#' @param x a character vector or SQL object
-#' @param ... Other arguments passed on to methods.
-#' @export
-setMethod("dbQuoteIdentifier", signature("KineticaConnection", "SQL"),
-          function(conn, x, ...) quote_identifier(conn = conn, x = x, ...)
-)
 
 #' dbUnquoteIdentifier()
 #'

@@ -20,7 +20,7 @@ dbIsValid(dbObj, ...)
 \arguments{
 \item{dbObj}{An object inheriting from [KineticaObject-class],
 i.e. [KineticaDriver-class], [KineticaConnection-class],
-or a [KineticaResult-class]}
+[KineticaId-class] or a [KineticaResult-class]}
 
 \item{...}{Other arguments to methods.}
 
@@ -75,23 +75,21 @@ Other KineticaDriver methods: \code{\link{dbCanConnect,KineticaDriver-method}},
   \code{\link{dbUnloadDriver,KineticaDriver-method}},
   \code{\link{show,KineticaDriver-method}}
 
-Other KineticaConnection methods: \code{\link{dbAppendTable,KineticaConnection-method}},
-  \code{\link{dbCreateTable,KineticaConnection-method}},
+Other KineticaConnection methods: \code{\link{dbAppendTable}},
+  \code{\link{dbCreateTable}},
   \code{\link{dbDataType,KineticaConnection-method}},
   \code{\link{dbDisconnect,KineticaConnection-method}},
   \code{\link{dbExecute,KineticaConnection,character-method}},
-  \code{\link{dbExistsTable,KineticaConnection,character-method}},
-  \code{\link{dbGetInfo}},
+  \code{\link{dbExistsTable}}, \code{\link{dbGetInfo}},
   \code{\link{dbGetQuery,KineticaConnection,character-method}},
-  \code{\link{dbListFields,KineticaConnection,character-method}},
+  \code{\link{dbListFields}},
   \code{\link{dbListObjects,KineticaConnection-method}},
   \code{\link{dbListResults,KineticaConnection-method}},
   \code{\link{dbListTables,KineticaConnection-method}},
-  \code{\link{dbReadTable,KineticaConnection,ANY-method}},
-  \code{\link{dbRemoveTable,KineticaConnection,character-method}},
+  \code{\link{dbReadTable}}, \code{\link{dbRemoveTable}},
   \code{\link{dbSendQuery,KineticaConnection,character-method}},
   \code{\link{dbSendStatement,KineticaConnection,character-method}},
-  \code{\link{dbWriteTable,KineticaConnection,ANY-method}},
+  \code{\link{dbWriteTable}},
   \code{\link{show,KineticaDriver-method}},
   \code{\link{sqlCreateTable,KineticaConnection-method}},
   \code{\link{transactions}}

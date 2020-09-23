@@ -37,11 +37,13 @@ Source code for the connector can be found at:
 archive network (*CRAN*):
 
 * [DBI](https://cran.r-project.org/web/packages/DBI/index.html)
-* [rjson](https://cran.r-project.org/web/packages/rjson/index.html)
+* [RJSONIO](https://cran.r-project.org/web/packages/RJSONIO/index.html)
 * [httr](https://cran.r-project.org/web/packages/httr/index.html)
 * [bit64](https://cran.r-project.org/web/packages/bit64/index.html)
 * [hms](https://cran.r-project.org/web/packages/hms/index.html)
 * [methods](https://cran.r-project.org/web/packages/R.methodsS3/index.html)
+* [purrr](https://cran.r-project.org/web/packages/purrr/index.html)
+* [dplyr](https://cran.r-project.org/web/packages/dplyr/index.html)
 
 **NOTE:**  If installing the *RKinetica* package in *RStudio*, the dependencies
 should be installed automatically prior to *RKinetica* being installed.
@@ -221,7 +223,7 @@ Additional code examples are available
 
 ### Strings vs Factors
 
-When RKinetica reads a character list into R dataframe it can be converted into
+When RKinetica reads a character list into R dataframe it can be converted in to
 a factor. This option is controlled by environment property that's read into
 `as.data.frame()` parameter `stringsAsFactors`:
 
@@ -234,6 +236,40 @@ the following syntax at the beginning of your R script or once per session:
 
 ```
 options(stringsAsFactors = FALSE)
+```
+
+### Schema naming support
+
+Starting with version 7.1 Kinetica DB stops supporting comma and period characters
+in table and column names. Instead user can use `<schema_name>.<table_name>`
+notation with only one period character allowed or `<table_name>` notation to
+lookup tables in the user's default schema. RKinetica added parameter
+`default_schema` to KineticaConnection object that stores user's default schema
+name:
+```
+con@default_schema
+[1] "ki_home"
+```
+
+All of the table managing functions of KineticaConnection (_dbCreateTable(),
+dbAppendTable(), dbReadTable(), dbWriteTable(), dbExistsTable(), and
+dbRemoveTable()_) now allow _name_ argument to be passed as a *character* value
+such as `some_schema.tableA` (or `tableA`, short for omitting default schema
+in `ki_home.tableA` notation) or a *KineticaId* object modelled after *DBI::Id*
+class that encapsulates a named vector with `schema` and `table` parameter values
+defined separately:
+```
+id  <- KineticaId(schema = "ki_home", table = "some_table")
+show(id)
+[1] <KineticaId> schema = ki_home, table = some_table
+```
+
+You can also create *KineticaId* object by submitting an unnamed character value
+that is going to be parsed into named schema and table pair:
+```
+id  <- KineticaId("ki_home.some_table")
+show(id)
+[1] <KineticaId> schema = ki_home, table = some_table
 ```
 
 

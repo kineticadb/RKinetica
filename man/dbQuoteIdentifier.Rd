@@ -4,17 +4,11 @@
 \name{dbQuoteIdentifier}
 \alias{dbQuoteIdentifier}
 \alias{dbQuoteIdentifier,KineticaConnection,ANY-method}
-\alias{dbQuoteIdentifier,KineticaConnection,character-method}
-\alias{dbQuoteIdentifier,KineticaConnection,SQL-method}
 \title{dbQuoteIdentifier()}
 \usage{
 dbQuoteIdentifier(conn, x, ...)
 
 \S4method{dbQuoteIdentifier}{KineticaConnection,ANY}(conn, x, ...)
-
-\S4method{dbQuoteIdentifier}{KineticaConnection,character}(conn, x, ...)
-
-\S4method{dbQuoteIdentifier}{KineticaConnection,SQL}(conn, x, ...)
 }
 \arguments{
 \item{conn}{object [KineticaConnection-class]}
@@ -22,24 +16,8 @@ dbQuoteIdentifier(conn, x, ...)
 \item{x}{a character vector or SQL object}
 
 \item{...}{Other arguments passed on to methods.}
-
-\item{conn}{object [KineticaConnection-class]}
-
-\item{x}{a character vector or SQL object}
-
-\item{...}{Other arguments passed on to methods.}
-
-\item{conn}{object [KineticaConnection-class]}
-
-\item{x}{a character vector or SQL object}
-
-\item{...}{Other arguments passed on to methods.}
 }
 \description{
-Escapes the provided character vector as SQL indetifier.
-
-Escapes the provided character vector as SQL indetifier.
-
 Escapes the provided character vector as SQL indetifier.
 
 Escapes the provided character vector as SQL indetifier.
