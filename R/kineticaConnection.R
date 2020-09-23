@@ -1,4 +1,5 @@
 #' @include kineticaDriver.R
+#' @include kineticaId.R
 
 #' Class KineticaConnection
 #'
@@ -27,6 +28,7 @@
 #' @slot ha_ptr a local environment storing pointer at the active url
 #' requires that no NULL values are present in the incoming dataset
 #' @slot results a local environment storing active query results
+#' @slot default_schema user's default schema in Kinetica DB
 #' @export
 setClass("KineticaConnection",
          contains = c("DBIConnection", "KineticaObject"),
@@ -45,6 +47,7 @@ setClass("KineticaConnection",
            ha_enabled = "logical",
            ha_ring = "character",
            ha_ptr = "environment",
+           default_schema = "character",
            results = "environment"
          )
 )
@@ -118,6 +121,7 @@ setMethod("dbGetInfo", "KineticaConnection",
          host = dbObj@host,
          port = dbObj@port,
          username = dbObj@username,
+         default_schema = dbObj@default_schema,
          ha_enabled = dbObj@ha_enabled,
          ha_ring = dbObj@ha_ring,
          row_limit = dbObj@row_limit)
@@ -131,12 +135,26 @@ setMethod("dbGetInfo", "KineticaConnection",
 #' @family KineticaConnection methods
 #' @rdname dbAppendTable
 #' @param conn an object of [KineticaConnection-class]
-#' @param name character string for table name
+#' @param name character string for table name or [KineticaId-class] object
 #' @param value A data frame. Factors will be converted to character vectors.
 #' @param ...  Other arguments omitted in generic signature
 #' @param row.names a flag with logical, character or NULL value
 #' @export
-setMethod("dbAppendTable", "KineticaConnection",
+setGeneric("dbAppendTable",
+    def = function(conn, name, value, ..., row.names = NULL) standardGeneric("dbAppendTable")
+)
+
+#' @rdname hidden_aliases
+#' @export
+setMethod("dbAppendTable", signature("KineticaConnection", "KineticaId"),
+    function(conn, name, ...) {
+      dbAppendTable(conn, dbQuoteIdentifier(conn, name), value, ..., row.names = NULL)
+    }
+)
+
+#' @rdname hidden_aliases
+#' @export
+setMethod("dbAppendTable", signature("KineticaConnection", "character"),
   function(conn, name, value, ..., row.names = NULL) {
     if (!dbIsValid(conn)) {
       stop("Invalid Kinetica Connection", call. = FALSE)
@@ -202,13 +220,14 @@ setMethod("sqlAppendTable", signature("KineticaConnection"),
       }
 
       sql_values <- sqlData(con, values, row.names)
-      table <- dbQuoteIdentifier(con, table)
+      # Create KineticaId object for proper quoting table name with schema in SQL statement
+      k_table <- KineticaId(dbUnquoteIdentifier(con, table))
       fields <- dbQuoteIdentifier(con, names(sql_values))
 
       # Convert fields into a character matrix
       rows <- do.call(paste, c(sql_values, sep = ", "))
       SQL(paste0(
-        "INSERT INTO ", table, "\n",
+        "INSERT INTO ", dbQuoteIdentifier(con, k_table), "\n",
         "  (", paste(fields, collapse = ", "), ")\n",
         "VALUES\n",
         paste0("  (", rows, ")", collapse = ",\n")
@@ -239,8 +258,6 @@ sqlAppendTableTemplate <- function(con, table, values, row.names = NA, prefix = 
             call. = FALSE
     )
   }
-
-  table <- dbQuoteIdentifier(con, table)
 
   values <- DBI::sqlRownamesToColumn(values[0, , drop = FALSE], row.names)
   fields <- dbQuoteIdentifier(con, names(values))
@@ -293,7 +310,9 @@ setMethod("sqlCreateTable", signature("KineticaConnection"),
       row.names = NA
     }
 
-    table <- dbQuoteIdentifier(con, table)
+    # Create KineticaId object for proper quoting table name with schema in SQL statement
+    k_table <- KineticaId(dbUnquoteIdentifier(con, table))
+    check_schema_name(con, k_table)
 
     if (is.data.frame(fields)) {
       fields <- DBI::sqlRownamesToColumn(fields, row.names)
@@ -305,7 +324,7 @@ setMethod("sqlCreateTable", signature("KineticaConnection"),
     fields <- paste0(field_names, " ", field_types)
 
     SQL(paste0(
-      "CREATE ", if (temporary) "TEMP ", "TABLE ", table, " (\n",
+      "CREATE ", if (temporary) "TEMP ", "TABLE ", dbQuoteIdentifier(con, k_table), " (\n",
       "  ", paste(fields, collapse = ",\n  "), "\n)\n"
     ))
   }
@@ -318,7 +337,7 @@ setMethod("sqlCreateTable", signature("KineticaConnection"),
 #' @family KineticaConnection methods
 #' @rdname dbCreateTable
 #' @param conn an object of [KineticaConnection-class]
-#' @param name character string for table name
+#' @param name character string for table name or [KineticaId-class] object
 #' @param fields either a named character vector or a data frame
 #' @param ... Other parameters passed on to methods.
 #' @param row.names Must be `NULL`.
@@ -332,7 +351,21 @@ setMethod("sqlCreateTable", signature("KineticaConnection"),
 #' dbDisconnect(con)
 #'}
 #' @export
-setMethod ("dbCreateTable", "KineticaConnection",
+setGeneric("dbCreateTable",
+  def = function(conn, name, fields, ..., row.names = NULL, temporary = FALSE) standardGeneric("dbCreateTable")
+)
+
+#' @rdname hidden_aliases
+#' @export
+setMethod("dbCreateTable", signature("KineticaConnection", "KineticaId"),
+  function(conn, name, ...) {
+    dbCreateTable(conn, dbQuoteIdentifier(conn, name), fields, ..., row.names = NULL, temporary = FALSE)
+  }
+)
+
+#' @rdname hidden_aliases
+#' @export
+setMethod("dbCreateTable", signature("KineticaConnection", "character"),
    function(conn, name, fields, ..., row.names = NULL, temporary = FALSE) {
      if (!dbIsValid(conn)) {
        stop("Invalid Kinetica Connection", call. = FALSE)
@@ -351,7 +384,7 @@ setMethod ("dbCreateTable", "KineticaConnection",
      } else {
          query <- sqlCreateTable(
            con = conn,
-           table = dbQuoteIdentifier(conn, name),
+           table = name,
            fields = fields,
            row.names = row.names,
            temporary = temporary,
@@ -359,7 +392,7 @@ setMethod ("dbCreateTable", "KineticaConnection",
          )
          dbExecute(conn, query)
          invisible(TRUE)
-         }
+      }
    }
 )
 
@@ -450,7 +483,7 @@ setMethod("dbExecute", signature("KineticaConnection", "character"),
 #' @family KineticaConnection methods
 #' @rdname dbExistsTable
 #' @param conn an object of [KineticaConnection-class]
-#' @param name character string for table or collection name
+#' @param name character string for table or collection name  or [KineticaId-class] object
 #' @param ... Other parameters passed on to methods.
 #' @return logical
 #' @export
@@ -466,6 +499,21 @@ setMethod("dbExecute", signature("KineticaConnection", "character"),
 #' # FALSE
 #' dbDisconnect(con)
 #'}
+setGeneric("dbExistsTable",
+  def = function(conn, name, ...) standardGeneric("dbExistsTable"),
+  valueClass = "logical"
+)
+
+#' @rdname hidden_aliases
+#' @export
+setMethod("dbExistsTable", signature("KineticaConnection", "KineticaId"),
+  function(conn, name, ...) {
+    dbExistsTable(conn, dbQuoteIdentifier(conn, name), ...)
+  }
+)
+
+#' @rdname hidden_aliases
+#' @export
 setMethod("dbExistsTable", signature("KineticaConnection", "character"),
   function(conn, name, ...) {
     if (!dbIsValid(conn)) {
@@ -556,7 +604,7 @@ setMethod("dbIsValid", signature("KineticaConnection"),
 #' @family KineticaConnection methods
 #' @rdname dbListFields
 #' @param conn A [KineticaConnection-class] object
-#' @param name a character string for table name
+#' @param name a character string for table name or [KineticaId-class] object
 #' @param ... Other parameters passed on to methods.
 #' @export
 #' @examples
@@ -571,23 +619,48 @@ setMethod("dbIsValid", signature("KineticaConnection"),
 #' dbRemoveTable(con, "tableA")
 #' dbDisconnect(con)
 #'}
-setMethod("dbListFields", signature("KineticaConnection", "character"),
-    function(conn, name, ...) {
-      if (!dbIsValid(conn)) {
-        stop("Invalid Kinetica Connection", call. = FALSE)
-      }
-      if(missing(name) || .invalid_character(name)) {
-        stop(paste("Invalid table name", name), call. = FALSE)
-      }
-      if (!dbExistsTable(conn, name)) {
-        stop(paste("Table", name, "does not exist"), call. = FALSE)
-      }
-      res <- dbSendQuery(conn, paste("SELECT * FROM ", dbQuoteIdentifier(conn, name), "LIMIT 0"))
-      fields <- names(res@data)
-      dbClearResult(res)
-      fields
-    })
+setGeneric("dbListFields",
+  def = function(conn, name, ...) standardGeneric("dbListFields"),
+  valueClass = "character"
+)
 
+#' @rdname hidden_aliases
+#' @export
+setMethod("dbListFields", signature("KineticaConnection", "KineticaId"),
+  function(conn, name, ...) {
+    list_fields(conn, dbQuoteIdentifier(conn, name))
+  }
+)
+
+#' @rdname hidden_aliases
+#' @export
+setMethod("dbListFields", signature("KineticaConnection", "character"),
+  function(conn, name, ...) {
+    list_fields(conn, name)
+  }
+)
+
+list_fields <- function(conn, name, ...) {
+  # Error out when bad connection is provided
+  if (!dbIsValid(conn)) {
+    stop("Invalid Kinetica Connection", call. = FALSE)
+  }
+  # Error out when table name is not a string
+  if(missing(name) || .invalid_character(name)) {
+    stop(paste("Invalid table name", name), call. = FALSE)
+  }
+  # Error out when table does not exist
+  if (!dbExistsTable(conn, name)) {
+    stop(paste("Table", name, "does not exist"), call. = FALSE)
+  }
+  # Create KineticaId object for future proper quoting table name with schema in SQL statement
+  k_table <- KineticaId(dbUnquoteIdentifier(conn, name))
+  # Build a query to get a list of fields for this table
+  res <- dbSendQuery(conn, paste("SELECT * FROM ", dbQuoteIdentifier(conn, k_table), "LIMIT 0"))
+  fields <- names(res@data)
+  dbClearResult(res)
+  fields
+}
 
 #' dbListObjects()
 #'
@@ -605,7 +678,9 @@ setMethod("dbListObjects", signature("KineticaConnection"),
           stop("Invalid Kinetica connection")
         }
         if (missing(prefix)) {
-          prefix <- ""
+          # "*" search string lists all top level schemas and schema tables within that
+          # user has permissions to access.
+          prefix <- "*"
         }
         show_objects(conn = conn, name = prefix)
       })
@@ -647,7 +722,7 @@ setMethod("dbListTables", signature("KineticaConnection"),
         stop("Invalid Kinetica Connection", call. = FALSE)
       }
       if (missing(name)) {
-        name <- ""
+        name <- "*"
       }
       show_tables(conn = conn, name = name)
     })
@@ -660,12 +735,19 @@ setMethod("dbListTables", signature("KineticaConnection"),
 #' @family KineticaConnection methods
 #' @rdname dbReadTable
 #' @param conn an object of [KineticaConnection-class]
-#' @param name a character string table name
+#' @param name a character string table name or [KineticaId-class] object
 #' @param row.names a logical flag to create extra row_names column
 #' @param check.names a logical flag to check names
 #' @param ...  Other arguments omitted in generic signature
 #' @export
-setMethod("dbReadTable", "KineticaConnection",
+setGeneric("dbReadTable",
+  def = function(conn, name, ...) standardGeneric("dbReadTable"),
+  valueClass = "data.frame"
+)
+
+#' @rdname hidden_aliases
+#' @export
+setMethod("dbReadTable", signature("KineticaConnection", "character"),
   function(conn, name, ..., row.names = FALSE, check.names = TRUE) {
     if (!dbIsValid(conn)) {
       stop("Invalid Kinetica Connection", call. = FALSE)
@@ -684,7 +766,9 @@ setMethod("dbReadTable", "KineticaConnection",
     if (!missing(check.names) && (.invalid_logical(check.names) || is.na(check.names))) {
       stop("Invalid check.names parameter value, expected TRUE/FALSE.", call. = FALSE)
     }
-    ds <- dbGetQuery(conn, paste("SELECT * FROM ", dbQuoteIdentifier(conn, name)))
+    # Create KineticaId object for proper quoting table name with schema in SQL statement
+    k_table <- KineticaId(dbUnquoteIdentifier(conn, name))
+    ds <- dbGetQuery(conn, paste("SELECT * FROM ", dbQuoteIdentifier(conn, k_table)))
     ds <- DBI::sqlColumnToRownames(ds, row.names)
     if (check.names) {
       names(ds) <- make.names(names(ds), unique = TRUE)
@@ -693,14 +777,36 @@ setMethod("dbReadTable", "KineticaConnection",
     ds
 })
 
+#' @rdname hidden_aliases
+#' @export
+setMethod("dbReadTable", signature("KineticaConnection", "KineticaId"),
+  function(conn, name, ...) {
+    dbReadTable(conn, dbQuoteIdentifier(conn, name), ...)
+  }
+)
+
 #' dbRemoveTable()
 #'
 #' Drops the table with the given name if one exists
 #' @family KineticaConnection methods
 #' @rdname dbRemoveTable
 #' @param conn an object of [KineticaConnection-class]
-#' @param name character string for table name
+#' @param name character string for table name or [KineticaId-class] object
 #' @param ...  Other arguments omitted in generic signature
+#' @export
+setGeneric("dbRemoveTable",
+  def = function(conn, name, ...) standardGeneric("dbRemoveTable")
+)
+
+#' @rdname hidden_aliases
+#' @export
+setMethod("dbRemoveTable", signature("KineticaConnection", "KineticaId"),
+  function(conn, name, ...) {
+    dbRemoveTable(conn, dbQuoteIdentifier(conn, name), ...)
+  }
+)
+
+#' @rdname hidden_aliases
 #' @export
 setMethod("dbRemoveTable",  signature("KineticaConnection", "character"),
   function(conn, name, ...) {
@@ -711,7 +817,9 @@ setMethod("dbRemoveTable",  signature("KineticaConnection", "character"),
     if (missing(name) || length(name) != 1 || is.null(name) || is.na(name) || !is.character(name) || nchar(name) < 1) {
       stop("Invalid table name", call. = FALSE)
     }
-    dbExecute(conn, paste("DROP TABLE IF EXISTS ", dbQuoteIdentifier(conn, name)))
+    # Create KineticaId object for proper quoting table name with schema in SQL statement
+    k_table <- KineticaId(dbUnquoteIdentifier(conn, name))
+    dbExecute(conn, paste("DROP TABLE IF EXISTS ", dbQuoteIdentifier(conn, k_table)))
 
     invisible(TRUE)
 })
@@ -790,7 +898,7 @@ setMethod("dbSendStatement", signature(conn ="KineticaConnection", statement = "
 #' @family KineticaConnection methods
 #' @rdname dbWriteTable
 #' @param conn an object of [KineticaConnection-class]
-#' @param name character string for table name
+#' @param name character string for table name or [KineticaId-class] object
 #' @param value a [data.frame] (or object coercible to data.frame)
 #' @param row.names a logical flag, NULL or chaacter value to create extra row_names column
 #' @param overwrite a logical flag to overwrite existing table with new columns and values
@@ -805,7 +913,22 @@ setMethod("dbSendStatement", signature(conn ="KineticaConnection", statement = "
 #' dbWriteTable(con, "test", data.frame(a = 1L:3L, b = 2.1:4.2), row.names = FALSE)
 #' dbDisconnect(con)
 #' }
-setMethod("dbWriteTable", signature("KineticaConnection"),
+setGeneric("dbWriteTable",
+  def = function(conn, name, value, ...) standardGeneric("dbWriteTable")
+)
+
+#' @rdname hidden_aliases
+#' @export
+setMethod("dbWriteTable", signature("KineticaConnection", "KineticaId", "ANY"),
+  function(conn, name, value, ..., row.names = FALSE,
+           overwrite = FALSE, append = FALSE, field.types = NULL, temporary = FALSE) {
+    string_name <- dbQuoteIdentifier(conn, name)
+    dbWriteTable(conn, string_name, value, ...)
+})
+
+#' @rdname hidden_aliases
+#' @export
+setMethod("dbWriteTable", signature("KineticaConnection", "character", "ANY"),
   function(conn, name, value, ..., row.names = FALSE,
            overwrite = FALSE, append = FALSE, field.types = NULL, temporary = FALSE) {
     if (!dbIsValid(conn)) {

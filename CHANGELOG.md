@@ -2,6 +2,12 @@
 
 ## Version 7.1
 
+### Version 7.1.1.0 -- 2020-09-22
+
+#### Added
+
+-   Support for schema naming of Kinetica DB tables
+
 ### Version 7.1.0.0 -- 2020-07-27
 
 #### Changed

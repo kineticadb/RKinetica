@@ -12,7 +12,7 @@ setClass("KineticaObject", representation("DBIObject", "VIRTUAL"))
 #' Generic dbIsValid() implementation.
 #' @param dbObj An object inheriting from [KineticaObject-class],
 #'  i.e. [KineticaDriver-class], [KineticaConnection-class],
-#'  or a [KineticaResult-class]
+#'  [KineticaId-class] or a [KineticaResult-class]
 #' @param ... Other arguments to methods.
 #' @return logical
 #' @export
@@ -36,7 +36,7 @@ setGeneric("dbIsReadOnly",
 setMethod("dbIsReadOnly", "KineticaObject", function(dbObj, ...) {
   # TODO: dynamically retrieve user access privileges (KECO-1673)
   if (class(dbObj) == "KineticaDriver" || class(dbObj) == "KineticaConnection"
-      || class(dbObj) == "KineticaResult")
+      || class(dbObj) == "KineticaResult" || class(dbObj) == "KineticaId")
     FALSE
   else {
     TRUE

@@ -3,9 +3,9 @@ ctx <- return_default_context()
 
 # DBItest::test_getting_started(skip=NULL, ctx)
 # DBItest::test_driver(skip=NULL, ctx)
-# DBItest::test_connection(skip=NULL, ctx)
+# DBItest::test_connection(skip = c("disconnect_invalid_connection"), ctx)
 # DBItest::test_transaction(skip = c("begin_commit_invalid", "with_transaction_error_invalid"), ctx)
-# DBItest::test_some(test = c("spec_sql_append_table", "spec_sql_write_table"), ctx)
+# DBItest::test_some(test = c("remove_table_name", "write_table_name"), ctx)
 # DBItest::test_compliance(skip=NULL, ctx)
 DBItest::test_all(skip = c(
   # Kinetica does not support the notion of "stale" connections, since it stores only the connection configuration and
@@ -25,7 +25,7 @@ DBItest::test_all(skip = c(
   # check_identical() on results with check_equivalent().
   # See "test-equivalent-replaces-identical.R" for customized tests for:
   "append_table", "fetch_n_more_rows", "fetch_n_zero_rows", "get_query_n_zero_rows",
-  "read_table_error", "overwrite_table_missing", "write_table_row_names_true_missing",
+  "read_table_error", "overwrite_table_missing",
 
   # TODO KECO-577
   # multiquote string value support
@@ -47,7 +47,7 @@ DBItest::test_all(skip = c(
 
   # TODO KECO-575
   # international characters string support
-  "data_character", "roundtrip_character_native",
+  "roundtrip_character_native",
 
   # TODO KECO-561
   # logical values support
@@ -70,12 +70,12 @@ DBItest::test_all(skip = c(
 
   # TODO KECO-1265
   # To pass compliance, RKinetica package needs graceful load/unload and redefined environment
-  "compliance", "ellipsis",
+  "ellipsis",
 
   # Bind operation on return value, or binding parameters by number or name are not supported by Kinetica DB.
   "bind_return_value", "bind_wrong_name", "bind_named_param_unnamed_placeholders",
   "bind_named_param_empty_placeholders", "bind_named_param_na_placeholders", "bind_repeated",
-  "bind_repeated_untouched", "column_info", "get_info_result",
+  "bind_repeated_untouched", "get_info_result",
 
   # Multirow binding is supported by Kinetica, but bind operation on return value is not.
   "bind_multi_row", "bind_multi_row_zero_length", "bind_multi_row_statement",
@@ -95,6 +95,20 @@ DBItest::test_all(skip = c(
 
 
   # Kinetica DB does not support table names with embedded comma
-  "exists_table_error", "exists_table_name", "write_table_error"
+  "exists_table_error", "exists_table_name", "write_table_error",
+
+  # TODO KECO-1908 Research a better version of test framework that works well with schemas
+  # After schemas are introduced in Kinetica 7.1 tests check for tables without schema fails
+  # due to oversimplified chck condition
+  # i.e. DBItests use (table %in%  dbListTables(con)) check instead of dbExistsTable(con, table),
+  # so code check for string "tableA" in list ["ki_home.tableA"] instead of explicitly using
+  # /has/table endpoint through dbExistsTable() call.
+  "exists_table_list", "list_tables", "remove_table_list", "remove_table_temporary",
+
+  # Tests that fail in Kintica 7.1 because comma is not allowed in table name:
+  "read_table_name", "write_table_name", "remove_table_name"
+  # Tests that don't fail in Kintica 7.1 any more:
+  # "column_info", "compliance", "data_character", "write_table_row_names_true_missing"
+
 
   ), ctx)

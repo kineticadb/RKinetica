@@ -13,6 +13,35 @@
 .empty_set <- stats::setNames(RJSONIO::fromJSON('{}'), character(0))
 
 # endpoint
+.show_security <- "/show/security"
+
+# Internal function that returns this user's default schema
+get_default_schema <- function(url = "character", username = "character", password = "character") {
+  if (!is.null(username) && nchar(username) > 0)
+    name <- username
+  else
+    name <- "anonymous"
+  resp <- .try_connection(url = url, endpoint = .show_security, username = username, password = password,
+                          body = list(names = list(name)), options = I(.empty_set))
+
+  if (status_code(resp) == 200) {
+    permissions <- RJSONIO::fromJSON(content(resp)$data_str, nullValue=NA, simplifyWithNames = FALSE)$permissions
+    user_properties <- permissions[[name]]
+    for (item in user_properties) {
+      if ("default_schema" %in% attributes(item)$names) {
+        return (item$default_schema)
+      }
+    }
+    # None of the username collection attributes matches "default_schema" label,
+    # so the user is not able to read/write tables in any schema
+    stop(paste("User", name, "does not have a 'default_schema' assigned. Please contact your administrator." ), call. = FALSE)
+  } else {
+    # Return error if the endpoint cannot be reached
+    stop(content(resp)$message, call. = FALSE)
+  }
+}
+
+# endpoint
 .show_system_properties <- "/show/system/properties"
 
 # Internal function that verifies that Kinetica DB is accessible as a single
@@ -94,6 +123,30 @@ has_table <- function(conn = "KineticaConnection", name = "character") {
   RJSONIO::fromJSON(content(resp)$data_str, nullValue=NA, simplifyWithNames = FALSE)$table_exists
 }
 
+# endpoints
+.has_schema <- "/has/schema"
+.create_schema <- "/create/schema"
+.options_create_schema <- list(no_error_if_exists = "true")
+
+
+# Internal function that checks that schema extracted from the table name exists
+check_schema_name <- function(conn = "KineticaConnection", id = "KineticaId") {
+  if (is.na(id@name["schema"])) {
+    # If no schema provided, user's default schema would be used
+    return (TRUE)
+  }
+  schema <- unname(id@name["schema"])
+  resp <- .post(conn, .has_schema, body = list(schema_name = schema), options = I(.empty_set))
+  schema_exists <- RJSONIO::fromJSON(content(resp)$data_str, nullValue=NA, simplifyWithNames = FALSE)$schema_exists
+  if (!schema_exists) {
+    # Create the schema if it does not exist before creating table within it
+    create_resp <- .post(conn, .create_schema, body = list(schema_name = schema), options = .options_create_schema)
+    RJSONIO::fromJSON(content(create_resp)$data_str, nullValue=NA, simplifyWithNames = FALSE)$schema_name
+    return (TRUE)
+  }
+}
+
+
 # endpoint
 .show_table <- "/show/table"
 .options_show_collection_tables <- list(get_column_info = "false", get_sizes = "false", show_children = "true", no_error_if_not_exists = "false")
@@ -106,7 +159,8 @@ show_tables <- function(conn = "KineticaConnection", name = "character") {
     as.character(data$table_names)
   },
   error = function(e) {
-    resp <- .post(conn, .show_table, body = list(table_name = ""), options = .options_show_collection_tables)
+    # "*" search string lists all top level schemas and schema tables within that user has permissions to access.
+    resp <- .post(conn, .show_table, body = list(table_name = "*"), options = .options_show_collection_tables)
     data <- fromJSON(content(resp)$data_str, nullValue=NA, simplifyWithNames = FALSE)
     t_names <- as.character(data$table_names)
     found <- grep(name, t_names)
@@ -120,18 +174,22 @@ show_objects <- function(conn = "KineticaConnection", name = "character") {
     resp <- .post(conn, .show_table, body = list(table_name = name), options = .options_show_collection_tables)
     data <- fromJSON(content(resp)$data_str, nullValue=NA, simplifyWithNames = FALSE)
     t_names <- as.character(data$table_names)
-    t_types <- as.character(data$table_descriptions)
-    is_prefix <- (t_types == rep("COLLECTION", length(t_types)))
+    t_types <- as.character(data$type_labels)
+    # Marking all Kinetica <collection> objects as prefix to allow user lookup tables within
+    # by submitting is_prefix strings in search text.
+    is_prefix <- (t_types == rep("<collection>", length(t_types)))
     ds <- data.frame(table = t_names, is_prefix = is_prefix, type = t_types)
   },
   error = function(e) {
-    resp <- .post(conn, .show_table, body = list(table_name = ""), options = .options_show_collection_tables)
+    resp <- .post(conn, .show_table, body = list(table_name = "*"), options = .options_show_collection_tables)
     data <- fromJSON(content(resp)$data_str, nullValue=NA, simplifyWithNames = FALSE)
     t_names <- as.character(data$table_names)
     found <- grep(name, t_names)
 
-    t_types <- as.character(data$table_descriptions)
-    is_prefix <- (t_types == rep("COLLECTION", length(t_types)))
+    t_types <- as.character(data$type_labels)
+    # Marking all Kinetica <collection> objects as prefix to allow user lookup tables within
+    # by submitting is_prefix strings in search text.
+    is_prefix <- (t_types == rep("<collection>", length(t_types)))
     ds <- data.frame(table = t_names[found], is_prefix = is_prefix[found], type = t_types[found])
   })
 
@@ -145,7 +203,7 @@ show_objects <- function(conn = "KineticaConnection", name = "character") {
 # Internal function that processes all data manipulation queries
 execute_sql <- function(conn = "KineticaConnection", statement = "character", offset = NULL, limit = NULL,
                         data = NULL, prepare_mode = NULL, no_return_data = NULL) {
-
+  # print(paste("SQL >", statement))
   if (grepl("cast(? as ", statement, fixed = TRUE)) {
     stop(paste("Bind operation on return value is not supported by Kinetica. ",
                "\nUnsupported cast expression was found in this statement [SQL:", statement, "]"), call. = FALSE)

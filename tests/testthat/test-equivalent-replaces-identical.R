@@ -388,8 +388,13 @@ test_that("reading_special_values_NaN_Infinity", {
   dbExecute(con, "DELETE FROM test_nan_values WHERE d1=0.1; ")
   dbRemoveTable(con, "test_values")
   df_nan <- check_dataframe(dbReadTable(con, "test_nan_values", row.names = FALSE))
-  d1 = as.double(c(NA, NA))
-  d2 = as.double(c(NA, NA))
-  expect_equivalent(df_nan, data.frame(d1, d2))
+  # Expected df_nan values:
+  #    d1  d2
+  # 1  NA NaN
+  # 2 Inf Inf
+  testthat::expect( is.na(df_nan[[1]][1]), "NA value not present")
+  testthat::expect(is.nan(df_nan[[2]][1]), "NaN value not present")
+  testthat::expect(is.infinite(df_nan[[1]][2]), "Inf value not present")
+  testthat::expect(is.infinite(df_nan[[2]][2]), "Inf value not present")
 
 })

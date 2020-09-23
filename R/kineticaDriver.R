@@ -365,6 +365,9 @@ setMethod("dbConnect", "KineticaDriver",
     # set pointer to position of primary url in the HA ring
     ha_ptr[["current"]] <- primary_url_idx
 
+    # get user's default schema
+    default_schema <- get_default_schema(url, username, password)
+
     # create a new connection object
     ptr <- sha1_hash(paste0(url, username, Sys.time()), key = "Kinetica")
     results <- new.env()
@@ -373,7 +376,7 @@ setMethod("dbConnect", "KineticaDriver",
                  username = username, password = password, timeout = timeout, ptr = ptr,
                  db.version = version, results = results, transaction = transaction,
                  row_limit = row_limit, ha_enabled = ha_enabled, ha_ring = ha_ring,
-                 ha_ptr = ha_ptr, ...)
+                 ha_ptr = ha_ptr, default_schema = default_schema, ...)
     drv@connections[[conn@ptr]] <- conn
 
     return (conn)
